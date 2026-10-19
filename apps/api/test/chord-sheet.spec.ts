@@ -4,20 +4,23 @@ import { parseChordSheet, renderChordSheet, transposeChordSheet, transposeKey } 
 describe('parsing and rendering', () => {
   it('attaches chords above a lyric line to lyric positions', () => {
     const sheet = parseChordSheet('[Verse 1]\nG       D\nAmazing grace');
-    expect(sheet).toEqual([
-      {
-        name: 'Verse 1',
-        lines: [
-          {
-            lyric: 'Amazing grace',
-            chords: [
-              { chord: 'G', at: 0 },
-              { chord: 'D', at: 8 },
-            ],
-          },
-        ],
-      },
-    ]);
+    expect(sheet).toEqual({
+      sections: [
+        {
+          name: 'Verse 1',
+          lines: [
+            {
+              lyric: 'Amazing grace',
+              chords: [
+                { chord: 'G', at: 0 },
+                { chord: 'D', at: 8 },
+              ],
+            },
+          ],
+        },
+      ],
+      order: ['Verse 1'],
+    });
   });
 
   it('renders the stored form back into aligned chord-over-lyric lines', () => {
@@ -27,7 +30,7 @@ describe('parsing and rendering', () => {
 
   it('keeps a chord positioned past the end of a shorter lyric', () => {
     const text = 'G          D\nOh Lord';
-    const [section] = parseChordSheet(text);
+    const [section] = parseChordSheet(text).sections;
     expect(section!.lines[0]!.chords).toEqual([
       { chord: 'G', at: 0 },
       { chord: 'D', at: 11 },
@@ -39,14 +42,14 @@ describe('parsing and rendering', () => {
     'recognises %s as a chord and keeps it aligned',
     (chord) => {
       const text = `${chord}   Am\nSome words here`;
-      const [section] = parseChordSheet(text);
+      const [section] = parseChordSheet(text).sections;
       expect(section!.lines[0]!.chords[0]).toEqual({ chord, at: 0 });
       expect(renderChordSheet(parseChordSheet(text))).toBe(text);
     },
   );
 
   it('treats a line of ordinary words as lyrics, not chords', () => {
-    const [section] = parseChordSheet('A Bad day\nAm');
+    const [section] = parseChordSheet('A Bad day\nAm').sections;
     expect(section!.lines[0]).toEqual({ lyric: 'A Bad day', chords: [] });
     expect(section!.lines[1]).toEqual({ lyric: '', chords: [{ chord: 'Am', at: 0 }] });
   });
@@ -57,44 +60,62 @@ describe('parsing and rendering', () => {
   });
 
   it('pushes overlapping chords apart rather than running them together', () => {
-    const sheet = [{ name: '', lines: [{ lyric: 'ab', chords: [{ chord: 'Cmaj7', at: 0 }, { chord: 'G', at: 2 }] }] }];
+    const sheet = {
+      sections: [{ name: '', lines: [{ lyric: 'ab', chords: [{ chord: 'Cmaj7', at: 0 }, { chord: 'G', at: 2 }] }] }],
+      order: [''],
+    };
     expect(renderChordSheet(sheet)).toBe('Cmaj7 G\nab');
   });
 });
 
 describe('section headers', () => {
+  const names = (text: string) => parseChordSheet(text).sections.map((section) => section.name);
+
   it('detects headers such as [Verse 1] and [Chorus]', () => {
-    const sheet = parseChordSheet('[Verse 1]\nHello\n\n[Chorus]\nWorld');
-    expect(sheet.map((s) => s.name)).toEqual(['Verse 1', 'Chorus']);
+    expect(names('[Verse 1]\nHello\n\n[Chorus]\nWorld')).toEqual(['Verse 1', 'Chorus']);
   });
 
-  it('collapses a repeated header with identical content into one Section', () => {
-    const sheet = parseChordSheet('[Chorus]\nC\nSing\n\n[Verse]\nHi\n\n[Chorus]\nC\nSing');
-    expect(sheet.map((s) => s.name)).toEqual(['Chorus', 'Verse']);
+  it('keeps a repeated header with identical content as one Section used twice in the original order', () => {
+    const text = '[Chorus]\nC\nSing\n\n[Verse]\nHi\n\n[Chorus]\nC\nSing';
+    const sheet = parseChordSheet(text);
+    expect(sheet.sections.map((s) => s.name)).toEqual(['Chorus', 'Verse']);
+    expect(sheet.order).toEqual(['Chorus', 'Verse', 'Chorus']);
+  });
+
+  it('renders a repeated Section in full each time it occurs, so nothing is lost', () => {
+    const text = '[Chorus]\nC\nSing\n\n[Verse]\nHi\n\n[Chorus]\nC\nSing';
+    expect(renderChordSheet(parseChordSheet(text))).toBe(text);
+  });
+
+  it('shows an edit to a repeated Section everywhere it occurs', () => {
+    const sheet = parseChordSheet('[Chorus]\nSing\n\n[Verse]\nHi\n\n[Chorus]\nSing');
+    sheet.sections[0]!.lines[0]!.lyric = 'Shout';
+    expect(renderChordSheet(sheet)).toBe('[Chorus]\nShout\n\n[Verse]\nHi\n\n[Chorus]\nShout');
   });
 
   it('keeps a repeated header with different content as a separately named Section', () => {
     const sheet = parseChordSheet('[Chorus]\nSing\n\n[Chorus]\nShout');
-    expect(sheet.map((s) => s.name)).toEqual(['Chorus', 'Chorus 2']);
+    expect(sheet.sections.map((s) => s.name)).toEqual(['Chorus', 'Chorus 2']);
+    expect(sheet.order).toEqual(['Chorus', 'Chorus 2']);
   });
 
   it('puts text before any header into an unnamed Section', () => {
-    const sheet = parseChordSheet('Hello\n[Verse]\nWorld');
-    expect(sheet.map((s) => s.name)).toEqual(['', 'Verse']);
+    expect(names('Hello\n[Verse]\nWorld')).toEqual(['', 'Verse']);
   });
 });
 
 describe('transposing', () => {
-  const sheetOf = (...chords: string[]) => [
-    { name: 'Verse', lines: [{ lyric: 'la', chords: chords.map((chord, i) => ({ chord, at: i * 3 })) }] },
-  ];
-  const chordsIn = (sheet: ReturnType<typeof sheetOf>) => sheet[0]!.lines[0]!.chords.map((c) => c.chord);
+  const sheetOf = (...chords: string[]) => ({
+    sections: [{ name: 'Verse', lines: [{ lyric: 'la', chords: chords.map((chord, i) => ({ chord, at: i * 3 })) }] }],
+    order: ['Verse'],
+  });
+  const chordsIn = (sheet: ReturnType<typeof sheetOf>) => sheet.sections[0]!.lines[0]!.chords.map((c) => c.chord);
 
   it('moves chords up and down, keeping positions and lyrics', () => {
     const up = transposeChordSheet(sheetOf('G', 'D', 'Em', 'C'), 2);
     expect(chordsIn(up)).toEqual(['A', 'E', 'F#m', 'D']);
-    expect(up[0]!.lines[0]!.chords.map((c) => c.at)).toEqual([0, 3, 6, 9]);
-    expect(up[0]!.lines[0]!.lyric).toBe('la');
+    expect(up.sections[0]!.lines[0]!.chords.map((c) => c.at)).toEqual([0, 3, 6, 9]);
+    expect(up.sections[0]!.lines[0]!.lyric).toBe('la');
     expect(chordsIn(transposeChordSheet(sheetOf('G', 'D', 'Em', 'C'), -2))).toEqual(['F', 'C', 'Dm', 'Bb']);
   });
 

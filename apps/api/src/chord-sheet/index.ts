@@ -15,7 +15,14 @@ export interface SheetSection {
   lines: SheetLine[];
 }
 
-export type ChordSheet = SheetSection[];
+/**
+ * A Song's content. `sections` holds each Section once, under a unique name; `order` is the original order
+ * as Section names, so a Section sung twice appears twice in `order` but is stored (and edited) once.
+ */
+export interface ChordSheet {
+  sections: SheetSection[];
+  order: string[];
+}
 
 const HEADER = /^\s*\[([^\]]+)\]\s*$/;
 const CHORD =
@@ -31,7 +38,7 @@ function chordsOf(line: string): PlacedChord[] | null {
 }
 
 export function parseChordSheet(text: string): ChordSheet {
-  const sections: ChordSheet = [];
+  const sections: SheetSection[] = [];
   let current: SheetSection | undefined;
   const open = (name: string) => {
     current = { name, lines: [] };
@@ -74,21 +81,24 @@ function trimBlankLines(section: SheetSection): SheetSection {
   return { name: section.name, lines };
 }
 
-/** A repeat of a Section is an Arrangement concern, so identical repeats collapse; differing ones get a number. */
-function resolveRepeatedHeaders(sections: SheetSection[]): ChordSheet {
-  const kept: ChordSheet = [];
-  const names = new Set<string>();
-  for (const section of sections) {
-    const twin = kept.find(
-      (other) => other.name === section.name && JSON.stringify(other.lines) === JSON.stringify(section.lines),
-    );
-    if (twin) continue;
-    let name = section.name;
-    for (let n = 2; name !== '' && names.has(name); n++) name = `${section.name} ${n}`;
-    names.add(name);
-    kept.push({ name, lines: section.lines });
+/** An identical repeat of a Section reuses it; a header repeated with different content gets a number. */
+function resolveRepeatedHeaders(raw: SheetSection[]): ChordSheet {
+  const sections: SheetSection[] = [];
+  const nameOf = new Map<string, string>();
+  const order: string[] = [];
+  for (const section of raw) {
+    const identity = JSON.stringify([section.name, section.lines]);
+    let name = nameOf.get(identity);
+    if (name === undefined) {
+      name = section.name;
+      const taken = new Set(sections.map((other) => other.name));
+      for (let n = 2; name !== '' && taken.has(name); n++) name = `${section.name} ${n}`;
+      nameOf.set(identity, name);
+      sections.push({ name, lines: section.lines });
+    }
+    order.push(name);
   }
-  return kept;
+  return { sections, order };
 }
 
 function renderLine({ lyric, chords }: SheetLine): string[] {
@@ -102,13 +112,14 @@ function renderLine({ lyric, chords }: SheetLine): string[] {
   return lyric === '' ? [chordLine] : [chordLine, lyric];
 }
 
-export function renderChordSheet(sheet: ChordSheet): string {
-  return sheet
-    .map((section) => {
-      const lines = section.lines.flatMap(renderLine);
+export function renderChordSheet({ sections, order }: ChordSheet): string {
+  const byName = new Map(sections.map((section) => [section.name, section]));
+  return order
+    .map((name) => {
+      const lines = byName.get(name)!.lines.flatMap(renderLine);
       while (lines.at(-1) === '') lines.pop();
       while (lines[0] === '') lines.shift();
-      return (section.name ? [`[${section.name}]`, ...lines] : lines).join('\n');
+      return (name ? [`[${name}]`, ...lines] : lines).join('\n');
     })
     .join('\n\n');
 }
@@ -150,13 +161,16 @@ export function transposeChord(chord: string, semitones: number, toKey?: string)
 
 /** Transposes every chord. With `toKey`, sharps or flats follow that key; otherwise each chord's own style is kept. */
 export function transposeChordSheet(sheet: ChordSheet, semitones: number, options: { toKey?: string } = {}): ChordSheet {
-  return sheet.map((section) => ({
-    name: section.name,
-    lines: section.lines.map((line) => ({
-      lyric: line.lyric,
-      chords: line.chords.map(({ chord, at }) => ({ chord: transposeChord(chord, semitones, options.toKey), at })),
+  return {
+    order: sheet.order,
+    sections: sheet.sections.map((section) => ({
+      name: section.name,
+      lines: section.lines.map((line) => ({
+        lyric: line.lyric,
+        chords: line.chords.map(({ chord, at }) => ({ chord: transposeChord(chord, semitones, options.toKey), at })),
+      })),
     })),
-  }));
+  };
 }
 
 /** Transposes a key name such as "G" or "F#m". */
