@@ -1,9 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
 import { ApiError, apiGet, getToken } from './api';
 
+export type Role = 'admin' | 'member';
+
 export interface Me {
   email: string;
-  role: 'admin' | 'member';
+  role: Role;
 }
 
 /** The signed-in Member, or null when signed out. */

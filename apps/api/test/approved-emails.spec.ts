@@ -22,7 +22,7 @@ describe('approved emails and roles', () => {
     const email = uniqueEmail();
     await approve(email).expect(201);
     const registered = await http().post('/auth/register').send({ email, password: 'correct horse' }).expect(201);
-    expect(registered.body.user).toEqual({ email, role: 'member' });
+    expect(registered.body.member).toEqual({ email, role: 'member' });
     const token = await signIn(app, email, 'correct horse');
     await http().get('/auth/me').set(bearer(token)).expect(200);
   });
@@ -49,7 +49,7 @@ describe('approved emails and roles', () => {
     const email = uniqueEmail();
     await approve(email).expect(201);
     await http().post('/auth/register').send({ email, password: 'correct horse' }).expect(201);
-    await http().post('/auth/register').send({ email, password: 'another one!' }).expect(409);
+    await http().post('/auth/register').send({ email, password: 'another one!' }).expect(403);
     await signIn(app, email, 'correct horse');
   });
 

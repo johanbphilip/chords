@@ -5,11 +5,11 @@ import { useState, type FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { apiDelete, apiGet, apiPost } from '@/lib/api';
-import { useMe } from '@/lib/auth';
+import { useMe, type Role } from '@/lib/auth';
 
 interface Approved {
   email: string;
-  role: 'admin' | 'member';
+  role: Role;
   hasPassword: boolean;
 }
 

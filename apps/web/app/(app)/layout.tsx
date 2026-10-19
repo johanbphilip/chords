@@ -1,6 +1,6 @@
 'use client';
 
-import { useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, type ReactNode } from 'react';
@@ -20,12 +20,15 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
   if (!me) return null;
 
-  async function signOut() {
-    await apiPost('/auth/sign-out').catch(() => {});
-    clearToken();
-    queryClient.clear();
-    router.replace('/sign-in');
-  }
+  const signOut = useMutation({
+    mutationFn: () => apiPost('/auth/sign-out'),
+    // Even if the server call fails, this device must forget the token.
+    onSettled: () => {
+      clearToken();
+      queryClient.clear();
+      router.replace('/sign-in');
+    },
+  });
 
   return (
     <>
@@ -38,7 +41,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             Admin
           </Link>
         )}
-        <Button variant="ghost" size="sm" className="ml-auto" onClick={signOut}>
+        <Button variant="ghost" size="sm" className="ml-auto" onClick={() => signOut.mutate()}>
           Sign out
         </Button>
       </header>

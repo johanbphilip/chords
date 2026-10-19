@@ -14,7 +14,7 @@ describe('signing in', () => {
 
   it('signs the seeded Admin in and identifies them', async () => {
     const res = await request(app.getHttpServer()).post('/auth/sign-in').send(ADMIN).expect(201);
-    expect(res.body.user).toEqual({ email: ADMIN.email, role: 'admin' });
+    expect(res.body.member).toEqual({ email: ADMIN.email, role: 'admin' });
     const me = await request(app.getHttpServer()).get('/auth/me').set(bearer(res.body.token)).expect(200);
     expect(me.body).toEqual({ email: ADMIN.email, role: 'admin' });
   });
@@ -36,5 +36,27 @@ describe('signing in', () => {
     const token = await signIn(app, ADMIN.email, ADMIN.password);
     await request(app.getHttpServer()).post('/auth/sign-out').set(bearer(token)).expect(201);
     await request(app.getHttpServer()).get('/auth/me').set(bearer(token)).expect(401);
+  });
+});
+
+describe('the Admin account', () => {
+  it('cannot be claimed by registering its email', async () => {
+    const app = await createApp();
+    try {
+      await request(app.getHttpServer()).post('/auth/register').send({ email: ADMIN.email, password: 'attacker-pass' }).expect(403);
+      await signIn(app, ADMIN.email, ADMIN.password);
+    } finally {
+      await app.close();
+    }
+  });
+
+  it('refuses to start with an Admin email but no Admin password', async () => {
+    const password = process.env.ADMIN_PASSWORD;
+    delete process.env.ADMIN_PASSWORD;
+    try {
+      await expect(createApp()).rejects.toThrow('ADMIN_PASSWORD');
+    } finally {
+      process.env.ADMIN_PASSWORD = password;
+    }
   });
 });

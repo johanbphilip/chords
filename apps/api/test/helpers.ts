@@ -4,7 +4,7 @@ import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
 
-export const ADMIN = { email: 'admin@example.com', password: 'admin-password' };
+export const ADMIN = { email: 'admin@example.com', password: 'Password123' };
 
 export async function createApp(): Promise<INestApplication> {
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();

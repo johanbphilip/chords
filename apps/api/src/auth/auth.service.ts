@@ -27,20 +27,22 @@ function validEmail(value: unknown): string {
 export class AuthService implements OnModuleInit {
   constructor(@Inject(Database) private readonly db: Database) {}
 
-  /** The one Admin that exists from the start. Their password can be set here or on first registration. */
+  /** The one Admin that exists from the start. The environment is the source of truth for their password. */
   async onModuleInit() {
     const email = process.env.ADMIN_EMAIL;
+    const password = process.env.ADMIN_PASSWORD;
     if (!email) return;
-    const hash = process.env.ADMIN_PASSWORD ? await hashPassword(process.env.ADMIN_PASSWORD) : null;
+    // Without a password the first visitor to register this email would become the Admin.
+    if (!password) throw new Error('ADMIN_PASSWORD is required when ADMIN_EMAIL is set');
     await this.db.query(
       `INSERT INTO members (email, role, password_hash) VALUES ($1, 'admin', $2)
-       ON CONFLICT (email) DO UPDATE SET password_hash = COALESCE(members.password_hash, EXCLUDED.password_hash)`,
-      [normaliseEmail(email), hash],
+       ON CONFLICT (email) DO UPDATE SET role = 'admin', password_hash = EXCLUDED.password_hash`,
+      [normaliseEmail(email), await hashPassword(password)],
     );
   }
 
   /** Returns undefined for an unknown email or wrong password, so callers cannot tell which. */
-  async signIn(email: string, password: string): Promise<{ token: string; user: Member } | undefined> {
+  async signIn(email: string, password: string): Promise<{ token: string; member: Member } | undefined> {
     const [row] = await this.db.query<{ email: string; role: Role; password_hash: string | null }>(
       'SELECT email, role, password_hash FROM members WHERE email = $1',
       [normaliseEmail(email)],
@@ -48,11 +50,11 @@ export class AuthService implements OnModuleInit {
     // Verify against a throwaway hash for unknown emails so timing does not reveal them.
     const ok = await verifyPassword(password, row?.password_hash ?? (await DUMMY_HASH));
     if (!row?.password_hash || !ok) return undefined;
-    return { token: await this.startSession(row.email), user: { email: row.email, role: row.role } };
+    return { token: await this.startSession(row.email), member: { email: row.email, role: row.role } };
   }
 
   /** An approved email with no password yet chooses one, which also signs them in. */
-  async register(email: unknown, password: unknown): Promise<{ token: string; user: Member }> {
+  async register(email: unknown, password: unknown): Promise<{ token: string; member: Member }> {
     const address = validEmail(email);
     if (typeof password !== 'string' || password.length < MIN_PASSWORD) {
       throw new BadRequestException(`Password must be at least ${MIN_PASSWORD} characters`);
@@ -61,12 +63,9 @@ export class AuthService implements OnModuleInit {
       `UPDATE members SET password_hash = $2 WHERE email = $1 AND password_hash IS NULL RETURNING role`,
       [address, await hashPassword(password)],
     );
-    if (!row) {
-      const [existing] = await this.db.query('SELECT 1 FROM members WHERE email = $1', [address]);
-      if (existing) throw new ConflictException('This email already has a password; sign in instead');
-      throw new ForbiddenException('This email has not been approved');
-    }
-    return { token: await this.startSession(address), user: { email: address, role: row.role } };
+    // One answer for "not approved" and "already registered", so this cannot be used to probe the approved list.
+    if (!row) throw new ForbiddenException('This email cannot be registered');
+    return { token: await this.startSession(address), member: { email: address, role: row.role } };
   }
 
   async listApproved(): Promise<{ email: string; role: Role; hasPassword: boolean }[]> {

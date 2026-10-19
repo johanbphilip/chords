@@ -129,11 +129,15 @@ function noteIndex(letter: string, accidental: string): number {
 
 type Spelling = 'sharps' | 'flats' | 'common';
 
+const TABLES = { sharps: SHARPS, flats: FLATS };
+const ACCIDENTAL_SPELLING: Record<string, Spelling> = { '#': 'sharps', b: 'flats', '': 'common' };
+
+/** A note keeps its own sharp or flat style unless the caller forces one; plain notes use the common table. */
 function transposeNote(note: string, semitones: number, forced: Spelling, common: string[]): string {
   const [, letter, accidental] = NOTE.exec(note)!;
   const index = (noteIndex(letter!, accidental!) + (semitones % 12) + 12) % 12;
-  const spelling = forced !== 'common' ? forced : accidental === 'b' ? 'flats' : accidental === '#' ? 'sharps' : 'common';
-  return (spelling === 'flats' ? FLATS : spelling === 'sharps' ? SHARPS : common)[index]!;
+  const spelling = forced === 'common' ? ACCIDENTAL_SPELLING[accidental!]! : forced;
+  return (spelling === 'common' ? common : TABLES[spelling])[index]!;
 }
 
 export function transposeChord(chord: string, semitones: number, toKey?: string): string {

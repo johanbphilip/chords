@@ -12,9 +12,9 @@ Install once with `pnpm install`, then run each in its own terminal:
 | `pnpm api` | Starts the NestJS API on port 4000 (needs `DATABASE_URL`, printed by `pnpm db`) |
 | `pnpm web` | Starts the Next.js app on port 3000 (the browser reads `NEXT_PUBLIC_API_URL`, default `http://localhost:4000`) |
 
-Example: `DATABASE_URL=postgres://chords:chords@localhost:54329/chords ADMIN_EMAIL=you@example.com pnpm api`
+Example: `DATABASE_URL=postgres://chords:chords@localhost:54329/chords ADMIN_EMAIL=you@example.com ADMIN_PASSWORD=Password123 pnpm api`
 
-`ADMIN_EMAIL` is the one Admin that exists from the start. They choose a password on the sign-in page ("First time here?"), or set `ADMIN_PASSWORD` too to have it set at startup.
+`ADMIN_EMAIL` and `ADMIN_PASSWORD` define the one Admin that exists from the start. The API refuses to start with one but not the other, and the password in the environment is applied on every start, so change it there. `Password123` is a placeholder for local development only.
 
 ## Checks
 
