@@ -16,6 +16,8 @@ Example: `DATABASE_URL=postgres://chords:chords@localhost:54329/chords ADMIN_EMA
 
 `ADMIN_EMAIL` and `ADMIN_PASSWORD` define the one Admin that exists from the start. The API refuses to start with one but not the other, and the password in the environment is applied on every start, so change it there. `Password123` is a placeholder for local development only. `BETTER_AUTH_SECRET` signs sessions and is required in production. Set `BETTER_AUTH_URL` to the API's public address if it is not `http://localhost:4000`, and `WEB_ORIGIN` to the web app's address if it is not `http://localhost:3000`.
 
+Requests are rate limited per client IP. See `docs/adr/0003-in-memory-rate-limiting-in-the-api.md` for the settings and their limits.
+
 ## Checks
 
 - `pnpm typecheck` checks both apps.
