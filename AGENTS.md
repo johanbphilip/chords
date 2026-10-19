@@ -16,3 +16,7 @@ Default vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-
 ### Domain docs
 
 Single-context: one `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+
+## Conventions
+
+- The Next.js app fetches all data with TanStack Query, through the helpers in `apps/web/lib/api.ts`.

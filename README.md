@@ -10,7 +10,7 @@ Install once with `pnpm install`, then run each in its own terminal:
 | --- | --- |
 | `pnpm db` | Starts a local Postgres (data kept in `.pgdata`) on port 54329 |
 | `pnpm api` | Starts the NestJS API on port 4000 (needs `DATABASE_URL`, printed by `pnpm db`) |
-| `pnpm web` | Starts the Next.js app on port 3000 (reads `API_URL`, default `http://localhost:4000`) |
+| `pnpm web` | Starts the Next.js app on port 3000 (the browser reads `NEXT_PUBLIC_API_URL`, default `http://localhost:4000`) |
 
 Example: `DATABASE_URL=postgres://chords:chords@localhost:54329/chords pnpm api`
 
