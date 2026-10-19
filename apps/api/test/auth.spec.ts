@@ -13,15 +13,14 @@ describe('signing in', () => {
   });
 
   it('signs the seeded Admin in and identifies them', async () => {
-    const res = await request(app.getHttpServer()).post('/auth/sign-in').send(ADMIN).expect(201);
-    expect(res.body.member).toEqual({ email: ADMIN.email, role: 'admin' });
-    const me = await request(app.getHttpServer()).get('/auth/me').set(bearer(res.body.token)).expect(200);
+    const token = await signIn(app, ADMIN.email, ADMIN.password);
+    const me = await request(app.getHttpServer()).get('/auth/me').set(bearer(token)).expect(200);
     expect(me.body).toEqual({ email: ADMIN.email, role: 'admin' });
   });
 
   it('refuses a wrong password and an unknown email alike', async () => {
-    const wrong = await request(app.getHttpServer()).post('/auth/sign-in').send({ email: ADMIN.email, password: 'nope-nope' });
-    const unknown = await request(app.getHttpServer()).post('/auth/sign-in').send({ email: 'ghost@example.com', password: 'nope-nope' });
+    const wrong = await request(app.getHttpServer()).post('/api/auth/sign-in/email').send({ email: ADMIN.email, password: 'nope-nope' });
+    const unknown = await request(app.getHttpServer()).post('/api/auth/sign-in/email').send({ email: 'ghost@example.com', password: 'nope-nope' });
     expect(wrong.status).toBe(401);
     expect(unknown.status).toBe(401);
     expect(unknown.body).toEqual(wrong.body);
@@ -34,8 +33,23 @@ describe('signing in', () => {
 
   it('stops a token working after sign-out', async () => {
     const token = await signIn(app, ADMIN.email, ADMIN.password);
-    await request(app.getHttpServer()).post('/auth/sign-out').set(bearer(token)).expect(201);
+    await request(app.getHttpServer()).post('/api/auth/sign-out').set(bearer(token)).expect(200);
     await request(app.getHttpServer()).get('/auth/me').set(bearer(token)).expect(401);
+  });
+});
+
+describe('registering', () => {
+  it('is only possible through our own endpoint, not Better Auth\'s sign-up route', async () => {
+    const app = await createApp();
+    try {
+      await request(app.getHttpServer())
+        .post('/api/auth/sign-up/email')
+        .send({ email: 'sneaky@example.com', password: 'a-long-password', name: 'Sneaky' })
+        .expect(400);
+      await request(app.getHttpServer()).post('/api/auth/sign-in/email').send({ email: 'sneaky@example.com', password: 'a-long-password' }).expect(401);
+    } finally {
+      await app.close();
+    }
   });
 });
 

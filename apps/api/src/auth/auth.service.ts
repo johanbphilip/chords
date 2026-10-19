@@ -1,16 +1,14 @@
 import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, OnModuleInit } from '@nestjs/common';
-import { createHash, randomBytes } from 'node:crypto';
+import { getMigrations } from 'better-auth/db/migration';
+import { fromNodeHeaders } from 'better-auth/node';
+import type { IncomingHttpHeaders } from 'node:http';
 import { Database } from '../database.js';
-import { hashPassword, verifyPassword } from './passwords.js';
+import { createAuth, type Auth, type Role } from './auth.js';
 
-export type Role = 'admin' | 'member';
 export interface Member {
   email: string;
   role: Role;
 }
-
-const SESSION_DAYS = 30;
-const sha256 = (value: string) => createHash('sha256').update(value).digest('hex');
 
 export const normaliseEmail = (email: string) => email.trim().toLowerCase();
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -25,89 +23,96 @@ function validEmail(value: unknown): string {
 
 @Injectable()
 export class AuthService implements OnModuleInit {
-  constructor(@Inject(Database) private readonly db: Database) {}
+  readonly auth: Auth;
+
+  constructor(@Inject(Database) private readonly db: Database) {
+    this.auth = createAuth(db.pool);
+  }
+
+  async onModuleInit() {
+    await this.migrate();
+    await this.seedAdmin();
+  }
+
+  /** Creates Better Auth's tables and ours. The lock keeps concurrent app starts from racing on CREATE TABLE. */
+  private async migrate() {
+    const client = await this.db.pool.connect();
+    try {
+      await client.query('SELECT pg_advisory_lock(7002)');
+      const { runMigrations } = await getMigrations(this.auth.options);
+      await runMigrations();
+      await this.db.query('CREATE TABLE IF NOT EXISTS approved_emails (email text PRIMARY KEY)');
+      // Replaced by Better Auth's tables; there were no real Members to carry over.
+      await this.db.query('DROP TABLE IF EXISTS sessions, members');
+    } finally {
+      await client.query('SELECT pg_advisory_unlock(7002)').catch(() => {});
+      client.release();
+    }
+  }
 
   /** The one Admin that exists from the start. The environment is the source of truth for their password. */
-  async onModuleInit() {
+  private async seedAdmin() {
     const email = process.env.ADMIN_EMAIL;
     const password = process.env.ADMIN_PASSWORD;
     if (!email) return;
     // Without a password the first visitor to register this email would become the Admin.
     if (!password) throw new Error('ADMIN_PASSWORD is required when ADMIN_EMAIL is set');
-    await this.db.query(
-      `INSERT INTO members (email, role, password_hash) VALUES ($1, 'admin', $2)
-       ON CONFLICT (email) DO UPDATE SET role = 'admin', password_hash = EXCLUDED.password_hash`,
-      [normaliseEmail(email), await hashPassword(password)],
-    );
+    const address = normaliseEmail(email);
+    await this.db.query('INSERT INTO approved_emails (email) VALUES ($1) ON CONFLICT DO NOTHING', [address]);
+
+    const context = await this.auth.$context;
+    const existing = await context.internalAdapter.findUserByEmail(address);
+    if (!existing) {
+      await this.auth.api.createUser({ body: { email: address, password, name: address, role: 'admin' } });
+      return;
+    }
+    await context.internalAdapter.updateUser(existing.user.id, { role: 'admin' });
+    await context.internalAdapter.updatePassword(existing.user.id, await context.password.hash(password));
   }
 
-  /** Returns undefined for an unknown email or wrong password, so callers cannot tell which. */
-  async signIn(email: string, password: string): Promise<{ token: string; member: Member } | undefined> {
-    const [row] = await this.db.query<{ email: string; role: Role; password_hash: string | null }>(
-      'SELECT email, role, password_hash FROM members WHERE email = $1',
-      [normaliseEmail(email)],
-    );
-    // Verify against a throwaway hash for unknown emails so timing does not reveal them.
-    const ok = await verifyPassword(password, row?.password_hash ?? (await DUMMY_HASH));
-    if (!row?.password_hash || !ok) return undefined;
-    return { token: await this.startSession(row.email), member: { email: row.email, role: row.role } };
-  }
-
-  /** An approved email with no password yet chooses one, which also signs them in. */
-  async register(email: unknown, password: unknown): Promise<{ token: string; member: Member }> {
+  /** An approved email with no account yet chooses a password. They sign in afterwards. */
+  async register(email: unknown, password: unknown): Promise<{ member: Member }> {
     const address = validEmail(email);
     if (typeof password !== 'string' || password.length < MIN_PASSWORD) {
       throw new BadRequestException(`Password must be at least ${MIN_PASSWORD} characters`);
     }
-    const [row] = await this.db.query<{ role: Role }>(
-      `UPDATE members SET password_hash = $2 WHERE email = $1 AND password_hash IS NULL RETURNING role`,
-      [address, await hashPassword(password)],
-    );
     // One answer for "not approved" and "already registered", so this cannot be used to probe the approved list.
-    if (!row) throw new ForbiddenException('This email cannot be registered');
-    return { token: await this.startSession(address), member: { email: address, role: row.role } };
+    const refused = new ForbiddenException('This email cannot be registered');
+    const [approved] = await this.db.query('SELECT 1 FROM approved_emails WHERE email = $1', [address]);
+    if (!approved) throw refused;
+    try {
+      await this.auth.api.createUser({ body: { email: address, password, name: address, role: 'member' } });
+    } catch {
+      throw refused;
+    }
+    return { member: { email: address, role: 'member' } };
   }
 
   async listApproved(): Promise<{ email: string; role: Role; hasPassword: boolean }[]> {
-    const rows = await this.db.query<{ email: string; role: Role; has_password: boolean }>(
-      'SELECT email, role, password_hash IS NOT NULL AS has_password FROM members ORDER BY email',
+    const rows = await this.db.query<{ email: string; role: Role | null }>(
+      `SELECT a.email, u.role FROM approved_emails a LEFT JOIN "user" u ON u.email = a.email ORDER BY a.email`,
     );
-    return rows.map((row) => ({ email: row.email, role: row.role, hasPassword: row.has_password }));
+    return rows.map((row) => ({ email: row.email, role: row.role ?? 'member', hasPassword: row.role !== null }));
   }
 
   async approve(email: unknown) {
     const address = validEmail(email);
-    await this.db.query(`INSERT INTO members (email, role) VALUES ($1, 'member') ON CONFLICT DO NOTHING`, [address]);
+    await this.db.query('INSERT INTO approved_emails (email) VALUES ($1) ON CONFLICT DO NOTHING', [address]);
     return { email: address };
   }
 
+  /** Removing an email deletes the account and, through the foreign keys, its sessions. */
   async remove(email: string) {
-    const rows = await this.db.query<{ role: Role }>('SELECT role FROM members WHERE email = $1', [normaliseEmail(email)]);
-    if (rows[0]?.role === 'admin') throw new ConflictException('The Admin cannot be removed');
-    await this.db.query('DELETE FROM members WHERE email = $1', [normaliseEmail(email)]);
+    const address = normaliseEmail(email);
+    const [user] = await this.db.query<{ role: Role }>('SELECT role FROM "user" WHERE email = $1', [address]);
+    if (user?.role === 'admin') throw new ConflictException('The Admin cannot be removed');
+    await this.db.query('DELETE FROM "user" WHERE email = $1', [address]);
+    await this.db.query('DELETE FROM approved_emails WHERE email = $1', [address]);
   }
 
-  async memberForToken(token: string): Promise<Member | undefined> {
-    const [row] = await this.db.query<Member>(
-      `SELECT m.email, m.role FROM sessions s JOIN members m ON m.email = s.email
-       WHERE s.token_hash = $1 AND s.expires_at > now()`,
-      [sha256(token)],
-    );
-    return row;
-  }
-
-  async signOut(token: string) {
-    await this.db.query('DELETE FROM sessions WHERE token_hash = $1', [sha256(token)]);
-  }
-
-  private async startSession(email: string): Promise<string> {
-    const token = randomBytes(32).toString('base64url');
-    await this.db.query(
-      `INSERT INTO sessions (token_hash, email, expires_at) VALUES ($1, $2, now() + make_interval(days => $3))`,
-      [sha256(token), email, SESSION_DAYS],
-    );
-    return token;
+  async memberForHeaders(headers: IncomingHttpHeaders): Promise<Member | undefined> {
+    const session = await this.auth.api.getSession({ headers: fromNodeHeaders(headers) });
+    if (!session) return undefined;
+    return { email: session.user.email, role: session.user.role as Role };
   }
 }
-
-const DUMMY_HASH = hashPassword('not-a-real-password');

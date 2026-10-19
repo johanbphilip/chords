@@ -3,7 +3,7 @@ import { Pool, type QueryResultRow } from 'pg';
 
 @Injectable()
 export class Database implements OnModuleInit, OnModuleDestroy {
-  private readonly pool: Pool;
+  readonly pool: Pool;
 
   constructor() {
     const connectionString = process.env.DATABASE_URL;
@@ -30,19 +30,6 @@ export class Database implements OnModuleInit, OnModuleDestroy {
       await client.query(
         `INSERT INTO greeting (id, message) VALUES (1, 'Hello from Postgres') ON CONFLICT DO NOTHING`,
       );
-      await client.query(`
-        CREATE TABLE IF NOT EXISTS members (
-          email text PRIMARY KEY,
-          role text NOT NULL CHECK (role IN ('admin', 'member')),
-          password_hash text,
-          created_at timestamptz NOT NULL DEFAULT now()
-        )`);
-      await client.query(`
-        CREATE TABLE IF NOT EXISTS sessions (
-          token_hash text PRIMARY KEY,
-          email text NOT NULL REFERENCES members (email) ON DELETE CASCADE ON UPDATE CASCADE,
-          expires_at timestamptz NOT NULL
-        )`);
       await client.query('COMMIT');
     } catch (error) {
       await client.query('ROLLBACK');

@@ -36,7 +36,7 @@ describe('approved emails and roles', () => {
   it('refuses an unapproved email, for registration and sign-in', async () => {
     const email = uniqueEmail('stranger');
     await http().post('/auth/register').send({ email, password: 'correct horse' }).expect(403);
-    await http().post('/auth/sign-in').send({ email, password: 'correct horse' }).expect(401);
+    await http().post('/api/auth/sign-in/email').send({ email, password: 'correct horse' }).expect(401);
   });
 
   it('refuses a short password', async () => {
@@ -72,7 +72,7 @@ describe('approved emails and roles', () => {
     const token = await signIn(app, email, 'correct horse');
     await http().delete(`/admin/approved-emails/${encodeURIComponent(email)}`).set(bearer(admin)).expect(200);
     await http().get('/auth/me').set(bearer(token)).expect(401);
-    await http().post('/auth/sign-in').send({ email, password: 'correct horse' }).expect(401);
+    await http().post('/api/auth/sign-in/email').send({ email, password: 'correct horse' }).expect(401);
     await http().post('/auth/register').send({ email, password: 'correct horse' }).expect(403);
   });
 

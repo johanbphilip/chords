@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
-import { apiPost, clearToken } from '@/lib/api';
+import { clearToken } from '@/lib/api';
+import { authClient } from '@/lib/auth-client';
 import { useMe } from '@/lib/auth';
 
 /** Every page inside this group needs a signed-in Member; signed-out visitors are sent to sign in. */
@@ -21,7 +22,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   if (!me) return null;
 
   const signOut = useMutation({
-    mutationFn: () => apiPost('/auth/sign-out'),
+    mutationFn: () => authClient.signOut(),
     // Even if the server call fails, this device must forget the token.
     onSettled: () => {
       clearToken();

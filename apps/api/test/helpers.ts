@@ -17,8 +17,8 @@ let counter = 0;
 export const uniqueEmail = (name = 'member') => `${name}-${Date.now()}-${counter++}@example.com`;
 
 export async function signIn(app: INestApplication, email: string, password: string): Promise<string> {
-  const res = await request(app.getHttpServer()).post('/auth/sign-in').send({ email, password }).expect(201);
-  return res.body.token as string;
+  const res = await request(app.getHttpServer()).post('/api/auth/sign-in/email').send({ email, password }).expect(200);
+  return res.headers['set-auth-token'] as string;
 }
 
 export const bearer = (token: string) => ({ Authorization: `Bearer ${token}` });

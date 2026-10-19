@@ -6,7 +6,8 @@ import { useState, type FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { apiPost, setToken } from '@/lib/api';
+import { apiPost } from '@/lib/api';
+import { authClient } from '@/lib/auth-client';
 
 export default function SignInPage() {
   const router = useRouter();
@@ -16,10 +17,12 @@ export default function SignInPage() {
   const [password, setPassword] = useState('');
 
   const submit = useMutation({
-    mutationFn: () =>
-      apiPost<{ token: string }>(settingPassword ? '/auth/register' : '/auth/sign-in', { email, password }),
-    onSuccess: async ({ token }) => {
-      setToken(token);
+    mutationFn: async () => {
+      if (settingPassword) await apiPost('/auth/register', { email, password });
+      const { error } = await authClient.signIn.email({ email, password });
+      if (error) throw new Error(error.message ?? 'Wrong email or password');
+    },
+    onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['me'] });
       router.replace('/');
     },
