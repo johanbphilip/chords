@@ -1,0 +1,12 @@
+{
+  "name": "chords",
+  "private": true,
+  "packageManager": "pnpm@12.4.2",
+  "scripts": {
+    "db": "pnpm --filter api db",
+    "api": "pnpm --filter api dev",
+    "web": "pnpm --filter web dev",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm --filter api test"
+  }
+}

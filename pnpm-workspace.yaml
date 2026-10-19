@@ -1,0 +1,8 @@
+packages:
+  - apps/*
+allowBuilds:
+  '@embedded-postgres/darwin-arm64': true
+  '@parcel/watcher': false
+  '@swc/core': true
+  esbuild: true
+  unrs-resolver: false
