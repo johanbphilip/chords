@@ -1,0 +1,48 @@
+'use client';
+
+import { useQueryClient } from '@tanstack/react-query';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useEffect, type ReactNode } from 'react';
+import { Button } from '@/components/ui/button';
+import { apiPost, clearToken } from '@/lib/api';
+import { useMe } from '@/lib/auth';
+
+/** Every page inside this group needs a signed-in Member; signed-out visitors are sent to sign in. */
+export default function AppLayout({ children }: { children: ReactNode }) {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const { data: me, isPending } = useMe();
+
+  useEffect(() => {
+    if (!isPending && !me) router.replace('/sign-in');
+  }, [isPending, me, router]);
+
+  if (!me) return null;
+
+  async function signOut() {
+    await apiPost('/auth/sign-out').catch(() => {});
+    clearToken();
+    queryClient.clear();
+    router.replace('/sign-in');
+  }
+
+  return (
+    <>
+      <header className="mx-auto flex max-w-2xl items-center gap-2 p-4">
+        <Link href="/" className="font-medium">
+          Explore
+        </Link>
+        {me.role === 'admin' && (
+          <Link href="/admin" className="text-sm text-muted-foreground">
+            Admin
+          </Link>
+        )}
+        <Button variant="ghost" size="sm" className="ml-auto" onClick={signOut}>
+          Sign out
+        </Button>
+      </header>
+      <main className="mx-auto max-w-2xl p-4">{children}</main>
+    </>
+  );
+}
