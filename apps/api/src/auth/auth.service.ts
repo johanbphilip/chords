@@ -3,7 +3,7 @@ import { getMigrations } from 'better-auth/db/migration';
 import { fromNodeHeaders } from 'better-auth/node';
 import type { IncomingHttpHeaders } from 'node:http';
 import { Database } from '../database.js';
-import { createAuth, type Auth, type Role } from './auth.js';
+import { createAuth, type Auth, type Permission, type Role } from './auth.js';
 
 export interface Member {
   email: string;
@@ -106,6 +106,11 @@ export class AuthService implements OnModuleInit {
     if (user?.role === 'admin') throw new ConflictException('The Admin cannot be removed');
     await this.db.query('DELETE FROM "user" WHERE email = $1', [address]);
     await this.db.query('DELETE FROM approved_emails WHERE email = $1', [address]);
+  }
+
+  async can(role: Role, permissions: Permission): Promise<boolean> {
+    const { success } = await this.auth.api.userHasPermission({ body: { role, permissions } });
+    return success;
   }
 
   async memberForHeaders(headers: IncomingHttpHeaders): Promise<Member | undefined> {

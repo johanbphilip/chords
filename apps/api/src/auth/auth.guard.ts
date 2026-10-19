@@ -9,16 +9,16 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
-import type { Role } from './auth.js';
+import type { Permission } from './auth.js';
 import { AuthService, type Member } from './auth.service.js';
 
 const PUBLIC = 'public';
-const ROLE = 'role';
+const PERMISSION = 'permission';
 
 /** Opts a route out of the global sign-in requirement. */
 export const Public = () => SetMetadata(PUBLIC, true);
-/** Restricts a route to one role. */
-export const RequireRole = (role: Role) => SetMetadata(ROLE, role);
+/** Restricts a route to Members whose role Better Auth says holds this permission. */
+export const RequirePermission = (permission: Permission) => SetMetadata(PERMISSION, permission);
 
 export type AuthedRequest = Request & { member: Member };
 
@@ -38,8 +38,8 @@ export class AuthGuard implements CanActivate {
     if (!member) throw new UnauthorizedException('Sign in required');
     request.member = member;
 
-    const role = this.reflector.getAllAndOverride<Role | undefined>(ROLE, targets);
-    if (role && member.role !== role) throw new ForbiddenException('Admins only');
+    const permission = this.reflector.getAllAndOverride<Permission | undefined>(PERMISSION, targets);
+    if (permission && !(await this.auth.can(member.role, permission))) throw new ForbiddenException('Admins only');
     return true;
   }
 }

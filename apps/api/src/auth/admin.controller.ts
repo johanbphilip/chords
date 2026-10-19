@@ -1,8 +1,8 @@
 import { Body, Controller, Delete, Get, Inject, Param, Post } from '@nestjs/common';
-import { RequireRole } from './auth.guard.js';
+import { RequirePermission } from './auth.guard.js';
 import { AuthService } from './auth.service.js';
 
-@RequireRole('admin')
+@RequirePermission({ approvedEmail: ['manage'] })
 @Controller('admin/approved-emails')
 export class AdminController {
   constructor(@Inject(AuthService) private readonly auth: AuthService) {}
