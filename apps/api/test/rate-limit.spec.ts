@@ -57,6 +57,18 @@ describe('rate limiting', () => {
     expect(statuses.at(-1)).toBe(429);
   });
 
+  it('cannot be dodged by sending a different X-Forwarded-For with every request', async () => {
+    const statuses: number[] = [];
+    for (let i = 0; i < 8; i++) {
+      const res = await http()
+        .post('/api/auth/sign-in/email')
+        .set('X-Forwarded-For', `203.0.113.${i + 1}`)
+        .send({ email: ADMIN.email, password: 'wrong-guess' });
+      statuses.push(res.status);
+    }
+    expect(statuses).toContain(429);
+  });
+
   it('lets a limited caller back in once the window has passed', async () => {
     const attempt = () => http().post('/auth/register').send({ email: uniqueEmail('nobody'), password: 'long enough' });
     await attempt();

@@ -74,3 +74,24 @@ describe('the Admin account', () => {
     }
   });
 });
+
+describe('Better Auth admin routes', () => {
+  it('cannot be used to create an account that skips the approved list, or to impersonate a Member', async () => {
+    const app = await createApp();
+    try {
+      const admin = await signIn(app, ADMIN.email, ADMIN.password);
+      const create = await request(app.getHttpServer())
+        .post('/api/auth/admin/create-user')
+        .set(bearer(admin))
+        .send({ email: 'unapproved@example.com', password: 'a-long-password', name: 'X', role: 'member' });
+      expect(create.status).toBe(404);
+      const impersonate = await request(app.getHttpServer())
+        .post('/api/auth/admin/impersonate-user')
+        .set(bearer(admin))
+        .send({ userId: 'anyone' });
+      expect(impersonate.status).toBe(404);
+    } finally {
+      await app.close();
+    }
+  });
+});

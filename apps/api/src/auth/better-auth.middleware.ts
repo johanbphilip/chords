@@ -13,6 +13,9 @@ export class BetterAuthMiddleware implements NestMiddleware {
   }
 
   use(req: Request, res: Response, _next: NextFunction) {
+    // Better Auth rate limits by X-Forwarded-For, which any client can forge. Replace it with the address Express
+    // resolves (the socket, or the proxy chain if `trust proxy` is set), the same one the throttler uses.
+    req.headers['x-forwarded-for'] = req.ip;
     return this.handler(req, res);
   }
 }

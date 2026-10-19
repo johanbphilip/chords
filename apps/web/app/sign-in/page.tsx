@@ -20,7 +20,14 @@ export default function SignInPage() {
     mutationFn: async () => {
       if (settingPassword) await apiPost('/auth/register', { email, password });
       const { error } = await authClient.signIn.email({ email, password });
-      if (error) throw new Error(error.message ?? 'Wrong email or password');
+      if (error) {
+        // Registering a second time is refused, so tell them their password is already set.
+        throw new Error(
+          settingPassword
+            ? 'Your password is set, but signing in failed. Use "Already have a password? Sign in".'
+            : (error.message ?? 'Wrong email or password'),
+        );
+      }
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['me'] });

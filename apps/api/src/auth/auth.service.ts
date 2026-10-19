@@ -42,8 +42,6 @@ export class AuthService implements OnModuleInit {
       const { runMigrations } = await getMigrations(this.auth.options);
       await runMigrations();
       await this.db.query('CREATE TABLE IF NOT EXISTS approved_emails (email text PRIMARY KEY)');
-      // Replaced by Better Auth's tables; there were no real Members to carry over.
-      await this.db.query('DROP TABLE IF EXISTS sessions, members');
     } finally {
       await client.query('SELECT pg_advisory_unlock(7002)').catch(() => {});
       client.release();

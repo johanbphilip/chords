@@ -99,6 +99,12 @@ describe('section headers', () => {
     expect(sheet.order).toEqual(['Chorus', 'Chorus 2']);
   });
 
+  it('does not treat an empty header such as [ ] as a Section', () => {
+    const sheet = parseChordSheet('[Verse]\nHello\n[ ]\nWorld');
+    expect(sheet.sections.map((s) => s.name)).toEqual(['Verse']);
+    expect(sheet.sections[0]!.lines.map((l) => l.lyric)).toEqual(['Hello', '[ ]', 'World']);
+  });
+
   it('puts text before any header into an unnamed Section', () => {
     expect(names('Hello\n[Verse]\nWorld')).toEqual(['', 'Verse']);
   });

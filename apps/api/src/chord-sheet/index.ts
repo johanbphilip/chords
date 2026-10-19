@@ -24,7 +24,7 @@ export interface ChordSheet {
   order: string[];
 }
 
-const HEADER = /^\s*\[([^\]]+)\]\s*$/;
+const HEADER = /^\s*\[\s*([^\]\s][^\]]*)\]\s*$/;
 const CHORD =
   /^[A-G][#b]?(?:maj|min|dim|aug|sus|add|m|M|\+|-|°|ø|\d+|[#b]\d+|\([^)\s]*\))*(?:\/[A-G][#b]?)?$/;
 
@@ -85,15 +85,16 @@ function trimBlankLines(section: SheetSection): SheetSection {
 function resolveRepeatedHeaders(raw: SheetSection[]): ChordSheet {
   const sections: SheetSection[] = [];
   const nameOf = new Map<string, string>();
+  const taken = new Set<string>();
   const order: string[] = [];
   for (const section of raw) {
     const identity = JSON.stringify([section.name, section.lines]);
     let name = nameOf.get(identity);
     if (name === undefined) {
       name = section.name;
-      const taken = new Set(sections.map((other) => other.name));
       for (let n = 2; name !== '' && taken.has(name); n++) name = `${section.name} ${n}`;
       nameOf.set(identity, name);
+      taken.add(name);
       sections.push({ name, lines: section.lines });
     }
     order.push(name);

@@ -3,6 +3,7 @@ import { createAccessControl } from 'better-auth/plugins/access';
 import { adminAc, defaultStatements, userAc } from 'better-auth/plugins/admin/access';
 import { admin, bearer } from 'better-auth/plugins';
 import type { Pool } from 'pg';
+import { rateLimits } from '../rate-limit.js';
 
 export type Role = 'admin' | 'member';
 
@@ -20,7 +21,9 @@ export function createAuth(pool: Pool) {
     plugins: [bearer(), admin({ ac, roles: { admin: adminAc, member: userAc }, defaultRole: 'member' })],
     // AuthService migrates the schema on startup, after this instance is built, so skip the check at construction.
     advanced: { database: { validateSchema: false } },
-    rateLimit: { enabled: process.env.RATE_LIMIT_DISABLED !== '1' },
+    // These admin routes would skip our approved list or mint sessions for other Members.
+    disabledPaths: ['/admin/create-user', '/admin/impersonate-user'],
+    rateLimit: { enabled: !rateLimits().disabled },
   });
 }
 
