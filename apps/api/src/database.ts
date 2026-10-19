@@ -3,7 +3,17 @@ import { Pool } from 'pg';
 
 @Injectable()
 export class Database implements OnModuleInit, OnModuleDestroy {
-  private readonly pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  private readonly pool: Pool;
+
+  constructor() {
+    const connectionString = process.env.DATABASE_URL;
+    if (!connectionString) {
+      throw new Error('DATABASE_URL is required (run `pnpm db` to get one)');
+    }
+    this.pool = new Pool({ connectionString });
+    // An idle client error (e.g. Postgres restarting) must not crash the API.
+    this.pool.on('error', (error) => console.error('Postgres pool error', error));
+  }
 
   async onModuleInit() {
     // Skeleton-only schema setup; replace with a migration tool when real tables arrive.
@@ -25,6 +35,7 @@ export class Database implements OnModuleInit, OnModuleDestroy {
     const { rows } = await this.pool.query<{ message: string }>(
       'SELECT message FROM greeting WHERE id = 1',
     );
+    if (!rows[0]) throw new Error('Greeting row is missing');
     return rows[0].message;
   }
 }
