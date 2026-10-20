@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import { ADMIN, bearer, createApp, signIn, uniqueEmail } from './helpers.js';
+import { ADMIN, approve, bearer, createApp, joinAs, signIn, uniqueEmail } from './helpers.js';
 
 describe('approved emails and roles', () => {
   let app: INestApplication;
@@ -16,64 +16,52 @@ describe('approved emails and roles', () => {
     await app.close();
   });
 
-  const approve = (email: string) => http().post('/admin/approved-emails').set(bearer(admin)).send({ email });
-
-  it('lets an approved email set a password and sign in as a Member', async () => {
-    const email = uniqueEmail();
-    await approve(email).expect(201);
-    const registered = await http().post('/auth/register').send({ email, password: 'correct horse' }).expect(201);
-    expect(registered.body.member).toEqual({ email, role: 'member' });
-    const token = await signIn(app, email, 'correct horse');
-    await http().get('/auth/me').set(bearer(token)).expect(200);
+  it('lets an approved email join through its invite and sign in as a Member', async () => {
+    const member = await joinAs(app, admin, { name: 'Maria' });
+    const me = await http().get('/auth/me').set(bearer(member.token)).expect(200);
+    expect(me.body).toEqual({ email: member.email, role: 'member', name: 'Maria' });
   });
 
   it('treats email case and surrounding spaces as the same address', async () => {
     const email = uniqueEmail('Mixed');
-    await approve(`  ${email.toUpperCase()} `).expect(201);
-    await http().post('/auth/register').send({ email, password: 'correct horse' }).expect(201);
+    const token = await approve(app, admin, `  ${email.toUpperCase()} `);
+    const accepted = await http().post('/auth/accept-invite').send({ token, name: 'Mixed', password: 'correct horse' }).expect(201);
+    expect(accepted.body.member.email).toBe(email.toLowerCase());
   });
 
-  it('refuses an unapproved email, for registration and sign-in', async () => {
+  it('refuses an unapproved email: there is no way to sign in or register', async () => {
     const email = uniqueEmail('stranger');
-    await http().post('/auth/register').send({ email, password: 'correct horse' }).expect(403);
     await http().post('/api/auth/sign-in/email').send({ email, password: 'correct horse' }).expect(401);
+    await http().post('/auth/register').send({ email, password: 'correct horse' }).expect(404);
   });
 
-  it('refuses a short password', async () => {
-    const email = uniqueEmail();
-    await approve(email).expect(201);
-    await http().post('/auth/register').send({ email, password: 'short' }).expect(400);
-  });
-
-  it('refuses to register an email that already has a password', async () => {
-    const email = uniqueEmail();
-    await approve(email).expect(201);
-    await http().post('/auth/register').send({ email, password: 'correct horse' }).expect(201);
-    await http().post('/auth/register').send({ email, password: 'another one!' }).expect(403);
-    await signIn(app, email, 'correct horse');
-  });
-
-  it('lists approved emails and approving twice does nothing new', async () => {
-    const email = uniqueEmail();
-    await approve(email).expect(201);
-    await approve(email).expect(201);
+  it('lists approved emails, with who has joined', async () => {
+    const waiting = uniqueEmail();
+    await approve(app, admin, waiting);
+    await approve(app, admin, waiting);
+    const joined = await joinAs(app, admin, { name: 'Joined' });
     const list = await http().get('/admin/approved-emails').set(bearer(admin)).expect(200);
-    expect(list.body.filter((m: { email: string }) => m.email === email)).toEqual([{ email, role: 'member', hasPassword: false }]);
+    const row = (email: string) => list.body.filter((p: { email: string }) => p.email === email);
+    expect(row(waiting)).toEqual([{ email: waiting, role: 'member', name: null, status: 'invited' }]);
+    expect(row(joined.email)).toEqual([{ email: joined.email, role: 'member', name: 'Joined', status: 'active' }]);
   });
 
   it('rejects something that is not an email address', async () => {
-    await approve('not-an-email').expect(400);
+    await http().post('/admin/approved-emails').set(bearer(admin)).send({ email: 'not-an-email' }).expect(400);
   });
 
-  it('stops a removed email signing in, even mid-session', async () => {
+  it('removing an email that never joined voids its invite', async () => {
     const email = uniqueEmail();
-    await approve(email).expect(201);
-    await http().post('/auth/register').send({ email, password: 'correct horse' }).expect(201);
-    const token = await signIn(app, email, 'correct horse');
+    const token = await approve(app, admin, email);
     await http().delete(`/admin/approved-emails/${encodeURIComponent(email)}`).set(bearer(admin)).expect(200);
-    await http().get('/auth/me').set(bearer(token)).expect(401);
-    await http().post('/api/auth/sign-in/email').send({ email, password: 'correct horse' }).expect(401);
-    await http().post('/auth/register').send({ email, password: 'correct horse' }).expect(403);
+    await http().post('/auth/accept-invite').send({ token, name: 'Late', password: 'correct horse' }).expect(400);
+  });
+
+  it('stops a removed Member signing in, even mid-session', async () => {
+    const member = await joinAs(app, admin);
+    await http().delete(`/admin/approved-emails/${encodeURIComponent(member.email)}`).set(bearer(admin)).expect(200);
+    await http().get('/auth/me').set(bearer(member.token)).expect(401);
+    await http().post('/api/auth/sign-in/email').send({ email: member.email, password: member.password }).expect(401);
   });
 
   it('will not remove the Admin', async () => {
@@ -81,13 +69,10 @@ describe('approved emails and roles', () => {
   });
 
   it('refuses a Member who tries an Admin action', async () => {
-    const email = uniqueEmail();
-    await approve(email).expect(201);
-    await http().post('/auth/register').send({ email, password: 'correct horse' }).expect(201);
-    const member = await signIn(app, email, 'correct horse');
-    await http().get('/admin/approved-emails').set(bearer(member)).expect(403);
-    await http().post('/admin/approved-emails').set(bearer(member)).send({ email: uniqueEmail() }).expect(403);
-    await http().delete(`/admin/approved-emails/${encodeURIComponent(email)}`).set(bearer(member)).expect(403);
+    const member = await joinAs(app, admin);
+    await http().get('/admin/approved-emails').set(bearer(member.token)).expect(403);
+    await http().post('/admin/approved-emails').set(bearer(member.token)).send({ email: uniqueEmail() }).expect(403);
+    await http().delete(`/admin/approved-emails/${encodeURIComponent(member.email)}`).set(bearer(member.token)).expect(403);
   });
 
   it('refuses a signed-out visitor any Admin action', async () => {

@@ -22,3 +22,31 @@ export async function signIn(app: INestApplication, email: string, password: str
 }
 
 export const bearer = (token: string) => ({ Authorization: `Bearer ${token}` });
+
+export const inviteToken = (inviteUrl: string) => inviteUrl.split('/').pop()!;
+
+/** Approves `email` as the Admin and returns the one-time token from its invite link. */
+export async function approve(app: INestApplication, adminToken: string, email: string): Promise<string> {
+  const res = await request(app.getHttpServer())
+    .post('/admin/approved-emails')
+    .set(bearer(adminToken))
+    .send({ email })
+    .expect(201);
+  return inviteToken(res.body.inviteUrl);
+}
+
+/** Approves a new Member, accepts their invite, and returns their email, password and session token. */
+export async function joinAs(
+  app: INestApplication,
+  adminToken: string,
+  options: { email?: string; name?: string; password?: string } = {},
+) {
+  const email = options.email ?? uniqueEmail();
+  const password = options.password ?? 'correct horse';
+  const token = await approve(app, adminToken, email);
+  await request(app.getHttpServer())
+    .post('/auth/accept-invite')
+    .send({ token, name: options.name ?? 'Test Member', password })
+    .expect(201);
+  return { email, password, token: await signIn(app, email, password) };
+}

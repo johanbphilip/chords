@@ -42,7 +42,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             Admin
           </Link>
         )}
-        <Button variant="ghost" size="sm" className="ml-auto" onClick={() => signOut.mutate()}>
+        <Link href="/profile" className="ml-auto text-sm text-muted-foreground">
+          {me.name}
+        </Link>
+        <Button variant="ghost" size="sm" onClick={() => signOut.mutate()}>
           Sign out
         </Button>
       </header>

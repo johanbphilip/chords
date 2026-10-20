@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import { ADMIN, bearer, createApp, signIn, uniqueEmail } from './helpers.js';
+import { ADMIN, bearer, createApp, signIn } from './helpers.js';
 
 const LIMIT_ENV = {
   RATE_LIMIT_DISABLED: undefined,
@@ -34,10 +34,10 @@ describe('rate limiting', () => {
 
   const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-  it('slows registration attempts sooner than ordinary requests', async () => {
-    const attempt = () => http().post('/auth/register').send({ email: uniqueEmail('nobody'), password: 'long enough' });
-    expect((await attempt()).status).toBe(403);
-    expect((await attempt()).status).toBe(403);
+  it('slows invite attempts sooner than ordinary requests', async () => {
+    const attempt = () => http().post('/auth/accept-invite').send({ token: 'made-up', name: 'Nobody', password: 'long enough' });
+    expect((await attempt()).status).toBe(400);
+    expect((await attempt()).status).toBe(400);
     expect((await attempt()).status).toBe(429);
   });
 
@@ -70,11 +70,11 @@ describe('rate limiting', () => {
   });
 
   it('lets a limited caller back in once the window has passed', async () => {
-    const attempt = () => http().post('/auth/register').send({ email: uniqueEmail('nobody'), password: 'long enough' });
+    const attempt = () => http().post('/auth/accept-invite').send({ token: 'made-up', name: 'Nobody', password: 'long enough' });
     await attempt();
     await attempt();
     expect((await attempt()).status).toBe(429);
     await pause(1100);
-    expect((await attempt()).status).toBe(403);
+    expect((await attempt()).status).toBe(400);
   });
 });

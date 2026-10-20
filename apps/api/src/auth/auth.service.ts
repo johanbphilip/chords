@@ -7,12 +7,19 @@ import { createAuth, type Auth, type Permission, type Role } from './auth.js';
 export interface Member {
   email: string;
   role: Role;
+  name: string;
 }
 
 export const normaliseEmail = (email: string) => email.trim().toLowerCase();
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const MIN_PASSWORD = 8;
+export const MIN_PASSWORD = 8;
 const ADMIN_SEED_LOCK = 7002;
+
+export function validName(value: unknown): string {
+  const name = typeof value === 'string' ? value.trim() : '';
+  if (name === '' || name.length > 100) throw new BadRequestException('Enter a display name (up to 100 characters)');
+  return name;
+}
 
 function validEmail(value: unknown): string {
   if (typeof value !== 'string' || !EMAIL.test(normaliseEmail(value))) {
@@ -53,29 +60,37 @@ export class AuthService implements OnModuleInit {
     await context.internalAdapter.updatePassword(existing.user.id, await context.password.hash(password));
   }
 
-  /** An approved email with no account yet chooses a password. They sign in afterwards. */
-  async register(email: unknown, password: unknown): Promise<{ member: Member }> {
-    const address = validEmail(email);
-    if (typeof password !== 'string' || password.length < MIN_PASSWORD) {
-      throw new BadRequestException(`Password must be at least ${MIN_PASSWORD} characters`);
-    }
-    // One answer for "not approved" and "already registered", so this cannot be used to probe the approved list.
-    const refused = new ForbiddenException('This email cannot be registered');
-    const [approved] = await this.db.query('SELECT 1 FROM approved_emails WHERE email = $1', [address]);
-    if (!approved) throw refused;
-    try {
-      await this.auth.api.createUser({ body: { email: address, password, name: address, role: 'member' } });
-    } catch {
-      throw refused;
-    }
-    return { member: { email: address, role: 'member' } };
+  async isApproved(email: string): Promise<boolean> {
+    const rows = await this.db.query('SELECT 1 FROM approved_emails WHERE email = $1', [email]);
+    return rows.length > 0;
   }
 
-  async listApproved(): Promise<{ email: string; role: Role; hasPassword: boolean }[]> {
-    const rows = await this.db.query<{ email: string; role: Role | null }>(
-      `SELECT a.email, u.role FROM approved_emails a LEFT JOIN "user" u ON u.email = a.email ORDER BY a.email`,
+  async isRegistered(email: string): Promise<boolean> {
+    const rows = await this.db.query('SELECT 1 FROM "user" WHERE email = $1', [email]);
+    return rows.length > 0;
+  }
+
+  /** Creates the account for an approved email. Throws if it is not approved or already exists. */
+  async createMember(email: string, name: string, password: string): Promise<Member> {
+    if (!(await this.isApproved(email))) throw new ForbiddenException('This email has not been approved');
+    await this.auth.api.createUser({ body: { email, password, name, role: 'member' } });
+    return { email, role: 'member', name };
+  }
+
+  async renameMember(headers: IncomingHttpHeaders, name: unknown) {
+    await this.auth.api.updateUser({ headers: fromNodeHeaders(headers), body: { name: validName(name) } });
+  }
+
+  async listApproved(): Promise<{ email: string; role: Role; name: string | null; status: 'invited' | 'active' }[]> {
+    const rows = await this.db.query<{ email: string; role: Role | null; name: string | null }>(
+      `SELECT a.email, u.role, u.name FROM approved_emails a LEFT JOIN "user" u ON u.email = a.email ORDER BY a.email`,
     );
-    return rows.map((row) => ({ email: row.email, role: row.role ?? 'member', hasPassword: row.role !== null }));
+    return rows.map((row) => ({
+      email: row.email,
+      role: row.role ?? 'member',
+      name: row.name,
+      status: row.role === null ? 'invited' : 'active',
+    }));
   }
 
   async approve(email: unknown) {
@@ -101,6 +116,6 @@ export class AuthService implements OnModuleInit {
   async memberForHeaders(headers: IncomingHttpHeaders): Promise<Member | undefined> {
     const session = await this.auth.api.getSession({ headers: fromNodeHeaders(headers) });
     if (!session) return undefined;
-    return { email: session.user.email, role: session.user.role as Role };
+    return { email: session.user.email, role: session.user.role as Role, name: session.user.name };
   }
 }

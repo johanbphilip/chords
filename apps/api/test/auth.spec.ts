@@ -15,7 +15,7 @@ describe('signing in', () => {
   it('signs the seeded Admin in and identifies them', async () => {
     const token = await signIn(app, ADMIN.email, ADMIN.password);
     const me = await request(app.getHttpServer()).get('/auth/me').set(bearer(token)).expect(200);
-    expect(me.body).toEqual({ email: ADMIN.email, role: 'admin' });
+    expect(me.body).toEqual({ email: ADMIN.email, role: 'admin', name: ADMIN.email });
   });
 
   it('refuses a wrong password and an unknown email alike', async () => {
@@ -38,8 +38,8 @@ describe('signing in', () => {
   });
 });
 
-describe('registering', () => {
-  it('is only possible through our own endpoint, not Better Auth\'s sign-up route', async () => {
+describe('the Admin account', () => {
+  it('cannot be claimed through Better Auth\'s own sign-up route', async () => {
     const app = await createApp();
     try {
       await request(app.getHttpServer())
@@ -47,18 +47,6 @@ describe('registering', () => {
         .send({ email: 'sneaky@example.com', password: 'a-long-password', name: 'Sneaky' })
         .expect(400);
       await request(app.getHttpServer()).post('/api/auth/sign-in/email').send({ email: 'sneaky@example.com', password: 'a-long-password' }).expect(401);
-    } finally {
-      await app.close();
-    }
-  });
-});
-
-describe('the Admin account', () => {
-  it('cannot be claimed by registering its email', async () => {
-    const app = await createApp();
-    try {
-      await request(app.getHttpServer()).post('/auth/register').send({ email: ADMIN.email, password: 'attacker-pass' }).expect(403);
-      await signIn(app, ADMIN.email, ADMIN.password);
     } finally {
       await app.close();
     }

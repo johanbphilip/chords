@@ -6,6 +6,7 @@ export type Role = 'admin' | 'member';
 export interface Me {
   email: string;
   role: Role;
+  name: string;
 }
 
 /** The signed-in Member, or null when signed out. */
