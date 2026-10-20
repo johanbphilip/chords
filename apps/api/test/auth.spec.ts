@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { ADMIN, bearer, createApp, signIn } from './helpers.js';
@@ -38,6 +38,21 @@ describe('signing in', () => {
   });
 });
 
+describe('sessions', () => {
+  it('last 30 days', async () => {
+    const app = await createApp();
+    try {
+      const token = await signIn(app, ADMIN.email, ADMIN.password);
+      const res = await request(app.getHttpServer()).get('/api/auth/get-session').set(bearer(token)).expect(200);
+      const days = (new Date(res.body.session.expiresAt).getTime() - Date.now()) / 86_400_000;
+      expect(days).toBeGreaterThan(29.5);
+      expect(days).toBeLessThanOrEqual(30);
+    } finally {
+      await app.close();
+    }
+  });
+});
+
 describe('the Admin account', () => {
   it('cannot be claimed through Better Auth\'s own sign-up route', async () => {
     const app = await createApp();
@@ -52,15 +67,6 @@ describe('the Admin account', () => {
     }
   });
 
-  it('refuses to start with an Admin email but no Admin password', async () => {
-    const password = process.env.ADMIN_PASSWORD;
-    delete process.env.ADMIN_PASSWORD;
-    try {
-      await expect(createApp()).rejects.toThrow('ADMIN_PASSWORD');
-    } finally {
-      process.env.ADMIN_PASSWORD = password;
-    }
-  });
 });
 
 describe('Better Auth admin routes', () => {
@@ -81,5 +87,51 @@ describe('Better Auth admin routes', () => {
     } finally {
       await app.close();
     }
+  });
+});
+
+describe('the Admin account across restarts', () => {
+  const keep = { email: process.env.ADMIN_EMAIL, password: process.env.ADMIN_PASSWORD };
+  afterEach(() => {
+    process.env.ADMIN_EMAIL = keep.email;
+    process.env.ADMIN_PASSWORD = keep.password;
+  });
+
+  const startAs = async (email: string, password?: string) => {
+    process.env.ADMIN_EMAIL = email;
+    if (password === undefined) delete process.env.ADMIN_PASSWORD;
+    else process.env.ADMIN_PASSWORD = password;
+    return createApp();
+  };
+
+  it('keeps a changed password: ADMIN_PASSWORD only applies when the Admin is first created', async () => {
+    const email = `bootstrap-${Date.now()}@example.com`;
+    const first = await startAs(email, 'original-password');
+    try {
+      const token = await signIn(first, email, 'original-password');
+      await request(first.getHttpServer())
+        .post('/api/auth/change-password')
+        .set(bearer(token))
+        .send({ currentPassword: 'original-password', newPassword: 'changed-password' })
+        .expect(200);
+    } finally {
+      await first.close();
+    }
+    const second = await startAs(email, 'original-password');
+    try {
+      await signIn(second, email, 'changed-password');
+      await request(second.getHttpServer()).post('/api/auth/sign-in/email').send({ email, password: 'original-password' }).expect(401);
+    } finally {
+      await second.close();
+    }
+  });
+
+  it('starts without ADMIN_PASSWORD once the Admin exists', async () => {
+    const app = await startAs(ADMIN.email);
+    await app.close();
+  });
+
+  it('refuses to start without ADMIN_PASSWORD while the Admin does not exist yet', async () => {
+    await expect(startAs(`never-created-${Date.now()}@example.com`)).rejects.toThrow('ADMIN_PASSWORD');
   });
 });

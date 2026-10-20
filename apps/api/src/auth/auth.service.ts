@@ -52,26 +52,28 @@ export class AuthService implements OnModuleInit {
     await this.db.withLock(ADMIN_SEED_LOCK, () => this.seedAdmin());
   }
 
-  /** The one Admin that exists from the start. The environment is the source of truth for their password. */
+  /**
+   * The one Admin that exists from the start. ADMIN_PASSWORD is only used to create the account: after that the
+   * Admin owns their password, so a change or reset is never overwritten by a restart.
+   */
   private async seedAdmin() {
     const email = process.env.ADMIN_EMAIL;
-    const password = process.env.ADMIN_PASSWORD;
     if (!email) return;
-    // Without a password the first visitor to register this email would become the Admin.
-    if (!password) throw new Error('ADMIN_PASSWORD is required when ADMIN_EMAIL is set');
     const address = normaliseEmail(email);
     await this.db.query('INSERT INTO approved_emails (email) VALUES ($1) ON CONFLICT DO NOTHING', [address]);
 
     const context = await this.auth.$context;
     const existing = await context.internalAdapter.findUserByEmail(address);
-    if (!existing) {
-      await this.auth.api.createUser({
-        body: { email: address, password, name: process.env.ADMIN_NAME ?? 'Admin', role: 'admin' },
-      });
+    if (existing) {
+      await context.internalAdapter.updateUser(existing.user.id, { role: 'admin' });
       return;
     }
-    await context.internalAdapter.updateUser(existing.user.id, { role: 'admin' });
-    await context.internalAdapter.updatePassword(existing.user.id, await context.password.hash(password));
+    const password = process.env.ADMIN_PASSWORD;
+    // Without a password the first visitor to open an invite for this email would not be the Admin we expect.
+    if (!password) throw new Error('ADMIN_PASSWORD is required to create the Admin account');
+    await this.auth.api.createUser({
+      body: { email: address, password, name: process.env.ADMIN_NAME ?? 'Admin', role: 'admin' },
+    });
   }
 
   /** A reset link for someone who has joined, for an Admin to copy to them. Better Auth spends it like an emailed one. */

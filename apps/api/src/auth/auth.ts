@@ -42,6 +42,8 @@ export function createAuth(pool: Pool, hooks: AuthHooks) {
         }, defaultRole: 'member' })],
     // AuthService migrates the schema on startup, after this instance is built, so skip the check at construction.
     advanced: { database: { validateSchema: false } },
+    // Signed in for 30 days, renewed (at most once a day) whenever the session is used.
+    session: { expiresIn: 30 * 24 * 60 * 60, updateAge: 24 * 60 * 60 },
     // These admin routes would skip our approved list or mint sessions for other Members.
     disabledPaths: ['/admin/create-user', '/admin/impersonate-user'],
     rateLimit: {
