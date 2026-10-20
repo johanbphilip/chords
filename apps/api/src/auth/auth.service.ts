@@ -1,5 +1,4 @@
 import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, OnModuleInit } from '@nestjs/common';
-import { getMigrations } from 'better-auth/db/migration';
 import { fromNodeHeaders } from 'better-auth/node';
 import type { IncomingHttpHeaders } from 'node:http';
 import { Database } from '../database.js';
@@ -13,6 +12,7 @@ export interface Member {
 export const normaliseEmail = (email: string) => email.trim().toLowerCase();
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD = 8;
+const ADMIN_SEED_LOCK = 7002;
 
 function validEmail(value: unknown): string {
   if (typeof value !== 'string' || !EMAIL.test(normaliseEmail(value))) {
@@ -30,22 +30,7 @@ export class AuthService implements OnModuleInit {
   }
 
   async onModuleInit() {
-    await this.migrate();
-    await this.seedAdmin();
-  }
-
-  /** Creates Better Auth's tables and ours. The lock keeps concurrent app starts from racing on CREATE TABLE. */
-  private async migrate() {
-    const client = await this.db.pool.connect();
-    try {
-      await client.query('SELECT pg_advisory_lock(7002)');
-      const { runMigrations } = await getMigrations(this.auth.options);
-      await runMigrations();
-      await this.db.query('CREATE TABLE IF NOT EXISTS approved_emails (email text PRIMARY KEY)');
-    } finally {
-      await client.query('SELECT pg_advisory_unlock(7002)').catch(() => {});
-      client.release();
-    }
+    await this.db.withLock(ADMIN_SEED_LOCK, () => this.seedAdmin());
   }
 
   /** The one Admin that exists from the start. The environment is the source of truth for their password. */

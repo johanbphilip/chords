@@ -4,6 +4,7 @@
   "packageManager": "pnpm@12.4.2",
   "scripts": {
     "db": "pnpm --filter api db",
+    "migrate": "pnpm --filter api migrate",
     "api": "pnpm --filter api dev",
     "web": "pnpm --filter web dev",
     "typecheck": "pnpm -r typecheck",

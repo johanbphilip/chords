@@ -1,5 +1,6 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { Pool, type QueryResultRow } from 'pg';
+import { MIGRATIONS_TABLE } from './migrate.js';
 
 @Injectable()
 export class Database implements OnModuleInit, OnModuleDestroy {
@@ -16,25 +17,20 @@ export class Database implements OnModuleInit, OnModuleDestroy {
   }
 
   async onModuleInit() {
-    // Skeleton-only schema setup; replace with a migration tool when real tables are many.
-    // The advisory lock keeps concurrent app starts (e.g. parallel test files) from racing on CREATE TABLE.
+    const [{ migrated }] = await this.query<{ migrated: boolean }>(
+      `SELECT to_regclass('public.${MIGRATIONS_TABLE}') IS NOT NULL AS migrated`,
+    );
+    if (!migrated) throw new Error('The database has no schema yet (run `pnpm migrate`)');
+  }
+
+  /** Runs `work` while holding a Postgres advisory lock, so concurrent API starts do not race on shared set-up. */
+  async withLock<T>(key: number, work: () => Promise<T>): Promise<T> {
     const client = await this.pool.connect();
     try {
-      await client.query('BEGIN');
-      await client.query('SELECT pg_advisory_xact_lock(7001)');
-      await client.query(`
-        CREATE TABLE IF NOT EXISTS greeting (
-          id integer PRIMARY KEY,
-          message text NOT NULL
-        )`);
-      await client.query(
-        `INSERT INTO greeting (id, message) VALUES (1, 'Hello from Postgres') ON CONFLICT DO NOTHING`,
-      );
-      await client.query('COMMIT');
-    } catch (error) {
-      await client.query('ROLLBACK');
-      throw error;
+      await client.query('SELECT pg_advisory_lock($1)', [key]);
+      return await work();
     } finally {
+      await client.query('SELECT pg_advisory_unlock($1)', [key]).catch(() => {});
       client.release();
     }
   }

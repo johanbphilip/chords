@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { migrate } from '../src/migrate.js';
 import { freePort, startDb } from './embedded-db.js';
 
 // Runs vitest against a throwaway real Postgres so every API test hits a real database.
@@ -21,6 +22,7 @@ try {
     database: 'chords_test',
     persistent: false,
   });
+  await migrate(db.url);
   const child = spawn('pnpm', ['exec', 'vitest', 'run', ...process.argv.slice(2)], {
     stdio: 'inherit',
     env: { ...process.env, DATABASE_URL: db.url },
