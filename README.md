@@ -18,6 +18,10 @@ Example: `DATABASE_URL=postgres://chords:chords@localhost:54329/chords ADMIN_EMA
 
 Requests are rate limited per client IP. See `docs/adr/0003-in-memory-rate-limiting-in-the-api.md` for the settings and their limits.
 
+## Design decisions
+
+Architecture and access decisions are in `docs/adr/`: the stack (0001), Better Auth and bearer tokens (0002), rate limiting (0003), invite links and Admin-managed access (0004), and the portable Postgres rules (0005). Tickets 23 to 28 in `.scratch/chords-mvp/issues/` build the access design.
+
 ## Checks
 
 - `pnpm typecheck` checks both apps.

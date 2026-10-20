@@ -73,8 +73,24 @@ _Avoid_: Home, feed, dashboard
 ### People
 
 **Member**:
-An approved person who can sign in, Import Songs, edit Songs and create or edit Arrangements. Members cannot delete.
+An approved person who has joined through an Invite link and can sign in, Import Songs, edit Songs and create or edit Arrangements. Members cannot delete.
 _Avoid_: User, musician (as a role), singer
+
+**Display name**:
+The name a Member chooses at registration and can change on their profile. It is what the History, Arrangements and Setlists show. Members never see each other's email addresses.
+_Avoid_: Username, handle
+
+**Invite link**:
+A one-time link an Admin gets when approving an email, valid for 7 days. Following it, the person chooses a display name and password and becomes a Member. The Admin copies it to WhatsApp or text; it is also emailed when email can reach the person.
+_Avoid_: Signup link, magic link
+
+**Access request**:
+A visitor's request to be approved, made from the sign-in page with a name and email. The Admin approves or declines it from a pending list.
+_Avoid_: Application, registration
+
+**Revoke**:
+An Admin stops a Member signing in and ends their open sessions. Their name stays on the History and on their work, and an Admin can restore them. Different from removing an approved email that never registered, which deletes it.
+_Avoid_: Delete, remove, ban (when talking to the owner)
 
 **Admin**:
 A Member who also approves who may sign in and has full access, including deleting.
