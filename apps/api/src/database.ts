@@ -1,6 +1,6 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { Pool, type QueryResultRow } from 'pg';
-import { MIGRATIONS_TABLE } from './migrate.js';
+import { pendingMigrations } from './migrate.js';
 
 @Injectable()
 export class Database implements OnModuleInit, OnModuleDestroy {
@@ -17,10 +17,10 @@ export class Database implements OnModuleInit, OnModuleDestroy {
   }
 
   async onModuleInit() {
-    const [{ migrated }] = await this.query<{ migrated: boolean }>(
-      `SELECT to_regclass('public.${MIGRATIONS_TABLE}') IS NOT NULL AS migrated`,
-    );
-    if (!migrated) throw new Error('The database has no schema yet (run `pnpm migrate`)');
+    const pending = await pendingMigrations(this.pool);
+    if (pending.length > 0) {
+      throw new Error(`The database is missing migrations: ${pending.join(', ')} (run \`pnpm migrate\`)`);
+    }
   }
 
   /** Runs `work` while holding a Postgres advisory lock, so concurrent API starts do not race on shared set-up. */

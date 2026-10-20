@@ -3,6 +3,8 @@ import { Database } from '../database.js';
 import type { Role } from './auth.js';
 import { AuthService, normaliseEmail } from './auth.service.js';
 
+const ADMIN_COUNT_LOCK = 7003;
+
 interface Person {
   id: string;
   role: Role;
@@ -10,7 +12,7 @@ interface Person {
 }
 
 @Injectable()
-export class PeopleService {
+export class MembersService {
   constructor(
     @Inject(Database) private readonly db: Database,
     @Inject(AuthService) private readonly auth: AuthService,
@@ -26,11 +28,13 @@ export class PeopleService {
 
   /** Better Auth's ban: sign-in is refused and every open session ends. The person and their name stay. */
   async revoke(email: string) {
-    const person = await this.find(email);
-    if (person.role === 'admin' && !person.banned) await this.requireAnotherAdmin(person.id);
-    const context = await this.auth.auth.$context;
-    await context.internalAdapter.updateUser(person.id, { banned: true, banReason: 'Access revoked' });
-    await this.db.query('DELETE FROM "session" WHERE "userId" = $1', [person.id]);
+    await this.db.withLock(ADMIN_COUNT_LOCK, async () => {
+      const person = await this.find(email);
+      if (person.role === 'admin' && !person.banned) await this.requireAnotherAdmin(person.id);
+      const context = await this.auth.auth.$context;
+      await context.internalAdapter.updateUser(person.id, { banned: true, banReason: 'Access revoked' });
+      await this.db.query('DELETE FROM "session" WHERE "userId" = $1', [person.id]);
+    });
   }
 
   async restore(email: string) {
@@ -41,10 +45,13 @@ export class PeopleService {
 
   async setRole(email: string, role: unknown) {
     if (role !== 'admin' && role !== 'member') throw new BadRequestException('Role must be admin or member');
-    const person = await this.find(email);
-    if (person.role === 'admin' && role === 'member' && !person.banned) await this.requireAnotherAdmin(person.id);
-    const context = await this.auth.auth.$context;
-    await context.internalAdapter.updateUser(person.id, { role });
+    // The lock makes "count the other Admins, then change this one" atomic, so two Admins cannot demote each other at once.
+    await this.db.withLock(ADMIN_COUNT_LOCK, async () => {
+      const person = await this.find(email);
+      if (person.role === 'admin' && role === 'member' && !person.banned) await this.requireAnotherAdmin(person.id);
+      const context = await this.auth.auth.$context;
+      await context.internalAdapter.updateUser(person.id, { role });
+    });
   }
 
   private async find(email: string): Promise<Person> {

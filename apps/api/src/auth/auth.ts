@@ -25,7 +25,7 @@ export function createAuth(pool: Pool, hooks: AuthHooks) {
     secret: process.env.BETTER_AUTH_SECRET,
     baseURL: process.env.BETTER_AUTH_URL ?? 'http://localhost:4000',
     trustedOrigins: [process.env.WEB_ORIGIN ?? 'http://localhost:3000'],
-    // Sign-up is closed: Members are only created through AuthService.register, which checks the approved list.
+    // Sign-up is closed: Members are only created from an invite link (InvitesService.accept).
     emailAndPassword: {
       enabled: true,
       disableSignUp: true,
@@ -40,12 +40,28 @@ export function createAuth(pool: Pool, hooks: AuthHooks) {
           admin: ac.newRole({ ...adminAc.statements, approvedEmail: ['manage'] }),
           member: ac.newRole({ ...userAc.statements }),
         }, defaultRole: 'member' })],
-    // AuthService migrates the schema on startup, after this instance is built, so skip the check at construction.
+    // The schema comes from migrations (pnpm migrate), not from Better Auth, so skip its own check.
     advanced: { database: { validateSchema: false } },
     // Signed in for 30 days, renewed (at most once a day) whenever the session is used.
     session: { expiresIn: 30 * 24 * 60 * 60, updateAge: 24 * 60 * 60 },
-    // These admin routes would skip our approved list or mint sessions for other Members.
-    disabledPaths: ['/admin/create-user', '/admin/impersonate-user'],
+    // Better Auth's admin routes would bypass our rules (the approved list, "revoke, never delete", the last-Admin
+    // check). We use its ban, role and password fields through our own endpoints instead, so none are exposed.
+    disabledPaths: [
+      '/admin/create-user',
+      '/admin/impersonate-user',
+      '/admin/stop-impersonating',
+      '/admin/remove-user',
+      '/admin/ban-user',
+      '/admin/unban-user',
+      '/admin/set-role',
+      '/admin/set-user-password',
+      '/admin/update-user',
+      '/admin/list-users',
+      '/admin/get-user',
+      '/admin/list-user-sessions',
+      '/admin/revoke-user-session',
+      '/admin/revoke-user-sessions',
+    ],
     rateLimit: {
       enabled: !rateLimits().disabled,
       customRules: { '/request-password-reset': { window: 60, max: 3 } },

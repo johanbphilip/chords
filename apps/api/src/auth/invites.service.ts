@@ -7,6 +7,8 @@ import { AuthService, MIN_PASSWORD, normaliseEmail, validName, type Member } fro
 
 const DEFAULT_TTL_SECONDS = 7 * 24 * 60 * 60;
 const sha256 = (value: string) => createHash('sha256').update(value).digest('hex');
+const lifetime = (seconds: number) =>
+  seconds >= 86_400 ? `${Math.round(seconds / 86_400)} days` : `${Math.max(1, Math.round(seconds / 60))} minutes`;
 const ttlSeconds = () => Number(process.env.INVITE_TTL_SECONDS ?? DEFAULT_TTL_SECONDS);
 
 @Injectable()
@@ -53,7 +55,9 @@ export class InvitesService {
     if (!claimed) throw refused;
     try {
       return { member: await this.auth.createMember(claimed.email, displayName, password) };
-    } catch {
+    } catch (error) {
+      // Give the link back so the person can retry, but keep the cause: it may be an outage, not a bad link.
+      console.error('Could not create the account for an invite', error);
       await this.db.query('UPDATE invites SET used_at = NULL WHERE token_hash = $1', [sha256(token)]);
       throw refused;
     }
@@ -64,7 +68,7 @@ export class InvitesService {
     await this.email.send({
       to: email,
       subject: 'You are invited to Chords',
-      text: `Open this link to choose your name and password. It works once and expires in 7 days.\n\n${inviteUrl}`,
+      text: `Open this link to choose your name and password. It works once and expires in ${lifetime(ttlSeconds())}.\n\n${inviteUrl}`,
     });
     return inviteUrl;
   }

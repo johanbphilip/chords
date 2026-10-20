@@ -39,12 +39,14 @@ export class AuthService implements OnModuleInit {
     @Inject(EmailService) email: EmailService,
   ) {
     this.auth = createAuth(db.pool, {
-      sendResetPassword: (to, token) =>
-        email.send({
+      // Not awaited: sending takes time only for registered emails, and that difference would reveal who is registered.
+      sendResetPassword: async (to, token) => {
+        void email.send({
           to,
           subject: 'Reset your Chords password',
           text: `Use this link to choose a new password. It works once and expires in an hour.\n\n${webLink(`/reset-password/${token}`)}`,
-        }),
+        });
+      },
     });
   }
 

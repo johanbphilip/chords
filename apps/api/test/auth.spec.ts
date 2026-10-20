@@ -70,20 +70,25 @@ describe('the Admin account', () => {
 });
 
 describe('Better Auth admin routes', () => {
-  it('cannot be used to create an account that skips the approved list, or to impersonate a Member', async () => {
+  it.each([
+    'create-user',
+    'impersonate-user',
+    'remove-user',
+    'ban-user',
+    'unban-user',
+    'set-role',
+    'set-user-password',
+    'revoke-user-session',
+    'revoke-user-sessions',
+  ])('cannot be used over HTTP to bypass our own rules: /admin/%s', async (route) => {
     const app = await createApp();
     try {
       const admin = await signIn(app, ADMIN.email, ADMIN.password);
-      const create = await request(app.getHttpServer())
-        .post('/api/auth/admin/create-user')
+      const res = await request(app.getHttpServer())
+        .post(`/api/auth/admin/${route}`)
         .set(bearer(admin))
-        .send({ email: 'unapproved@example.com', password: 'a-long-password', name: 'X', role: 'member' });
-      expect(create.status).toBe(404);
-      const impersonate = await request(app.getHttpServer())
-        .post('/api/auth/admin/impersonate-user')
-        .set(bearer(admin))
-        .send({ userId: 'anyone' });
-      expect(impersonate.status).toBe(404);
+        .send({ userId: 'anyone', email: 'unapproved@example.com', password: 'a-long-password', name: 'X', role: 'member' });
+      expect(res.status).toBe(404);
     } finally {
       await app.close();
     }

@@ -3,8 +3,8 @@ import { APP_GUARD } from '@nestjs/core';
 import { AccessRequestsController } from './auth/access-requests.controller.js';
 import { AccessRequestsService } from './auth/access-requests.service.js';
 import { AdminController } from './auth/admin.controller.js';
-import { AdminMembersController, MembersController } from './auth/people.controller.js';
-import { PeopleService } from './auth/people.service.js';
+import { AdminMembersController, MembersController } from './auth/members.controller.js';
+import { MembersService } from './auth/members.service.js';
 import { AuthController } from './auth/auth.controller.js';
 import { AuthGuard } from './auth/auth.guard.js';
 import { BetterAuthMiddleware } from './auth/better-auth.middleware.js';
@@ -25,7 +25,7 @@ import { throttlerOptions } from './rate-limit.js';
     AuthService,
     InvitesService,
     AccessRequestsService,
-    PeopleService,
+    MembersService,
     // Throttle first, so a flood of unauthenticated requests is turned away before any session lookup.
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: AuthGuard },

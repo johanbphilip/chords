@@ -43,9 +43,12 @@ export class AccessRequestsService {
   /** Approving is the same as the Admin approving that email by hand: it gives an invite link. */
   async approve(email: string) {
     const address = normaliseEmail(email);
-    const removed = await this.db.query('DELETE FROM access_requests WHERE email = $1 RETURNING email', [address]);
-    if (removed.length === 0) throw new NotFoundException('There is no request from that email');
-    return this.invites.approveAndInvite(address);
+    const found = await this.db.query('SELECT 1 FROM access_requests WHERE email = $1', [address]);
+    if (found.length === 0) throw new NotFoundException('There is no request from that email');
+    // Issue the invite first, so a failure leaves the request in the list instead of losing it.
+    const invite = await this.invites.approveAndInvite(address);
+    await this.db.query('DELETE FROM access_requests WHERE email = $1', [address]);
+    return invite;
   }
 
   async decline(email: string) {
