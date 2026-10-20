@@ -8,6 +8,7 @@ import { AuthService } from './auth/auth.service.js';
 import { InvitesService } from './auth/invites.service.js';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { Database } from './database.js';
+import { EmailService } from './email.service.js';
 import { HelloController } from './hello.controller.js';
 import { throttlerOptions } from './rate-limit.js';
 
@@ -16,6 +17,7 @@ import { throttlerOptions } from './rate-limit.js';
   controllers: [HelloController, AuthController, AdminController],
   providers: [
     Database,
+    EmailService,
     AuthService,
     InvitesService,
     // Throttle first, so a flood of unauthenticated requests is turned away before any session lookup.

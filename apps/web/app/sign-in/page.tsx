@@ -1,6 +1,7 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
@@ -58,6 +59,9 @@ export default function SignInPage() {
             <Button type="submit" disabled={submit.isPending}>
               Sign in
             </Button>
+            <Link href="/forgot-password" className="text-sm underline">
+              Forgot your password?
+            </Link>
             <p className="text-sm text-muted-foreground">
               New here? Ask an Admin for an invite link, then open it to choose your password.
             </p>

@@ -69,6 +69,15 @@ describe('rate limiting', () => {
     expect(statuses).toContain(429);
   });
 
+  it('limits password reset requests, so nobody can flood an inbox', async () => {
+    const statuses: number[] = [];
+    for (let i = 0; i < 6; i++) {
+      statuses.push((await http().post('/api/auth/request-password-reset').send({ email: ADMIN.email })).status);
+    }
+    expect(statuses.slice(0, 3)).toEqual([200, 200, 200]);
+    expect(statuses.at(-1)).toBe(429);
+  });
+
   it('lets a limited caller back in once the window has passed', async () => {
     const attempt = () => http().post('/auth/accept-invite').send({ token: 'made-up', name: 'Nobody', password: 'long enough' });
     await attempt();

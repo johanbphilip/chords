@@ -26,6 +26,11 @@ export class AdminController {
     return this.invites.reissue(email);
   }
 
+  @Post(':email/reset-link')
+  resetLink(@Param('email') email: string) {
+    return this.auth.resetLinkFor(email);
+  }
+
   @Delete(':email')
   async remove(@Param('email') email: string) {
     await this.auth.remove(email);

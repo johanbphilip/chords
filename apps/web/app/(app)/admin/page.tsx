@@ -19,6 +19,11 @@ interface Invite {
   inviteUrl: string | null;
 }
 
+interface Reset {
+  email: string;
+  resetUrl: string;
+}
+
 export default function AdminPage() {
   const { data: me } = useMe();
   if (me?.role !== 'admin') return <p>Only an Admin can manage who may sign in.</p>;
@@ -29,6 +34,7 @@ function ApprovedEmails() {
   const queryClient = useQueryClient();
   const [email, setEmail] = useState('');
   const [invite, setInvite] = useState<Invite | null>(null);
+  const [reset, setReset] = useState<Reset | null>(null);
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['approved-emails'] });
 
   const { data, error } = useQuery({
@@ -47,6 +53,10 @@ function ApprovedEmails() {
     mutationFn: (address: string) => apiPost<Invite>(`/admin/approved-emails/${encodeURIComponent(address)}/invite`),
     onSuccess: setInvite,
   });
+  const resetLink = useMutation({
+    mutationFn: (address: string) => apiPost<Reset>(`/admin/approved-emails/${encodeURIComponent(address)}/reset-link`),
+    onSuccess: setReset,
+  });
   const remove = useMutation({
     mutationFn: (address: string) => apiDelete(`/admin/approved-emails/${encodeURIComponent(address)}`),
     onSuccess: refresh,
@@ -57,7 +67,7 @@ function ApprovedEmails() {
     add.mutate();
   }
 
-  const problem = add.error ?? reissue.error ?? remove.error ?? error;
+  const problem = add.error ?? reissue.error ?? resetLink.error ?? remove.error ?? error;
 
   return (
     <div className="flex flex-col gap-4">
@@ -68,7 +78,12 @@ function ApprovedEmails() {
           Approve
         </Button>
       </form>
-      {invite?.inviteUrl && <InviteLink email={invite.email} url={invite.inviteUrl} />}
+      {invite?.inviteUrl && (
+        <CopyLink text={`Send this link to ${invite.email}. It works once and expires in 7 days. It is shown only now.`} url={invite.inviteUrl} />
+      )}
+      {reset && (
+        <CopyLink text={`Send this link to ${reset.email} so they can choose a new password. It works once and expires in an hour.`} url={reset.resetUrl} />
+      )}
       {problem && <p className="text-sm text-destructive">{problem.message}</p>}
       <ul className="flex flex-col gap-2">
         {data?.map((person) => (
@@ -78,6 +93,11 @@ function ApprovedEmails() {
             <span className="text-muted-foreground">
               {person.role === 'admin' ? 'Admin' : person.status === 'active' ? 'Member' : 'Invited'}
             </span>
+            {person.status === 'active' && (
+              <Button variant="ghost" size="sm" className="ml-auto" onClick={() => resetLink.mutate(person.email)}>
+                Reset link
+              </Button>
+            )}
             {person.status === 'invited' && (
               <Button variant="ghost" size="sm" className="ml-auto" onClick={() => reissue.mutate(person.email)}>
                 New invite link
@@ -87,7 +107,6 @@ function ApprovedEmails() {
               <Button
                 variant="ghost"
                 size="sm"
-                className={person.status === 'invited' ? undefined : 'ml-auto'}
                 onClick={() => remove.mutate(person.email)}
               >
                 Remove
@@ -100,15 +119,13 @@ function ApprovedEmails() {
   );
 }
 
-function InviteLink({ email, url }: { email: string; url: string }) {
+function CopyLink({ text, url }: { text: string; url: string }) {
   const [copied, setCopied] = useState(false);
   return (
     <div className="flex flex-col gap-2 rounded-lg border p-3 text-sm">
-      <p>
-        Send this link to {email}. It works once and expires in 7 days. It is shown only now.
-      </p>
+      <p>{text}</p>
       <div className="flex gap-2">
-        <Input readOnly value={url} onFocus={(e) => e.currentTarget.select()} aria-label="Invite link" />
+        <Input readOnly value={url} onFocus={(e) => e.currentTarget.select()} aria-label="Link to send" />
         <Button
           type="button"
           onClick={async () => {

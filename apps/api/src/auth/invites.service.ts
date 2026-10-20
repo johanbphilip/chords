@@ -1,6 +1,8 @@
 import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { createHash, randomBytes } from 'node:crypto';
 import { Database } from '../database.js';
+import { EmailService } from '../email.service.js';
+import { webLink } from './auth.js';
 import { AuthService, MIN_PASSWORD, normaliseEmail, validName, type Member } from './auth.service.js';
 
 const DEFAULT_TTL_SECONDS = 7 * 24 * 60 * 60;
@@ -12,13 +14,14 @@ export class InvitesService {
   constructor(
     @Inject(Database) private readonly db: Database,
     @Inject(AuthService) private readonly auth: AuthService,
+    @Inject(EmailService) private readonly email: EmailService,
   ) {}
 
   /** Approves an email and, unless they have already joined, gives the Admin a link to send them. */
   async approveAndInvite(email: unknown): Promise<{ email: string; inviteUrl: string | null }> {
     const { email: address } = await this.auth.approve(email);
     if (await this.auth.isRegistered(address)) return { email: address, inviteUrl: null };
-    return { email: address, inviteUrl: await this.issue(address) };
+    return { email: address, inviteUrl: await this.issueAndEmail(address) };
   }
 
   /** A fresh link for an approved email that has not joined yet. Any earlier link stops working. */
@@ -26,7 +29,7 @@ export class InvitesService {
     const address = normaliseEmail(email);
     if (!(await this.auth.isApproved(address))) throw new NotFoundException('That email has not been approved');
     if (await this.auth.isRegistered(address)) throw new ConflictException('That person has already joined');
-    return { email: address, inviteUrl: await this.issue(address) };
+    return { email: address, inviteUrl: await this.issueAndEmail(address) };
   }
 
   async voidFor(email: string) {
@@ -56,6 +59,16 @@ export class InvitesService {
     }
   }
 
+  private async issueAndEmail(email: string): Promise<string> {
+    const inviteUrl = await this.issue(email);
+    await this.email.send({
+      to: email,
+      subject: 'You are invited to Chords',
+      text: `Open this link to choose your name and password. It works once and expires in 7 days.\n\n${inviteUrl}`,
+    });
+    return inviteUrl;
+  }
+
   private async issue(email: string): Promise<string> {
     const token = randomBytes(32).toString('base64url');
     await this.db.query('DELETE FROM invites WHERE email = $1', [email]);
@@ -63,6 +76,6 @@ export class InvitesService {
       `INSERT INTO invites (token_hash, email, expires_at) VALUES ($1, $2, now() + make_interval(secs => $3))`,
       [sha256(token), email, ttlSeconds()],
     );
-    return `${process.env.WEB_ORIGIN ?? 'http://localhost:3000'}/invite/${token}`;
+    return webLink(`/invite/${token}`);
   }
 }

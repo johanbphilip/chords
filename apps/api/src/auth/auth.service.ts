@@ -1,8 +1,10 @@
-import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { fromNodeHeaders } from 'better-auth/node';
 import type { IncomingHttpHeaders } from 'node:http';
+import { randomBytes } from 'node:crypto';
 import { Database } from '../database.js';
-import { createAuth, type Auth, type Permission, type Role } from './auth.js';
+import { EmailService } from '../email.service.js';
+import { createAuth, RESET_TOKEN_SECONDS, webLink, type Auth, type Permission, type Role } from './auth.js';
 
 export interface Member {
   email: string;
@@ -32,8 +34,18 @@ function validEmail(value: unknown): string {
 export class AuthService implements OnModuleInit {
   readonly auth: Auth;
 
-  constructor(@Inject(Database) private readonly db: Database) {
-    this.auth = createAuth(db.pool);
+  constructor(
+    @Inject(Database) private readonly db: Database,
+    @Inject(EmailService) email: EmailService,
+  ) {
+    this.auth = createAuth(db.pool, {
+      sendResetPassword: (to, token) =>
+        email.send({
+          to,
+          subject: 'Reset your Chords password',
+          text: `Use this link to choose a new password. It works once and expires in an hour.\n\n${webLink(`/reset-password/${token}`)}`,
+        }),
+    });
   }
 
   async onModuleInit() {
@@ -58,6 +70,21 @@ export class AuthService implements OnModuleInit {
     }
     await context.internalAdapter.updateUser(existing.user.id, { role: 'admin' });
     await context.internalAdapter.updatePassword(existing.user.id, await context.password.hash(password));
+  }
+
+  /** A reset link for someone who has joined, for an Admin to copy to them. Better Auth spends it like an emailed one. */
+  async resetLinkFor(email: string): Promise<{ email: string; resetUrl: string }> {
+    const address = normaliseEmail(email);
+    const context = await this.auth.$context;
+    const found = await context.internalAdapter.findUserByEmail(address);
+    if (!found) throw new NotFoundException('That person has not joined yet');
+    const token = randomBytes(18).toString('base64url');
+    await context.internalAdapter.createVerificationValue({
+      identifier: `reset-password:${token}`,
+      value: found.user.id,
+      expiresAt: new Date(Date.now() + RESET_TOKEN_SECONDS * 1000),
+    });
+    return { email: address, resetUrl: webLink(`/reset-password/${token}`) };
   }
 
   async isApproved(email: string): Promise<boolean> {
