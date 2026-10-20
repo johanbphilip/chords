@@ -23,7 +23,7 @@ export function validName(value: unknown): string {
   return name;
 }
 
-function validEmail(value: unknown): string {
+export function validEmail(value: unknown): string {
   if (typeof value !== 'string' || !EMAIL.test(normaliseEmail(value))) {
     throw new BadRequestException('Enter a valid email address');
   }

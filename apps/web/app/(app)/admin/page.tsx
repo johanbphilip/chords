@@ -19,6 +19,12 @@ interface Invite {
   inviteUrl: string | null;
 }
 
+interface AccessRequest {
+  email: string;
+  name: string;
+  requestedAt: string;
+}
+
 interface Reset {
   email: string;
   resetUrl: string;
@@ -53,6 +59,21 @@ function ApprovedEmails() {
     mutationFn: (address: string) => apiPost<Invite>(`/admin/approved-emails/${encodeURIComponent(address)}/invite`),
     onSuccess: setInvite,
   });
+  const requests = useQuery({
+    queryKey: ['access-requests'],
+    queryFn: () => apiGet<AccessRequest[]>('/admin/access-requests'),
+  });
+  const approveRequest = useMutation({
+    mutationFn: (address: string) => apiPost<Invite>(`/admin/access-requests/${encodeURIComponent(address)}/approve`),
+    onSuccess: (created) => {
+      setInvite(created);
+      return Promise.all([refresh(), queryClient.invalidateQueries({ queryKey: ['access-requests'] })]);
+    },
+  });
+  const declineRequest = useMutation({
+    mutationFn: (address: string) => apiDelete(`/admin/access-requests/${encodeURIComponent(address)}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['access-requests'] }),
+  });
   const resetLink = useMutation({
     mutationFn: (address: string) => apiPost<Reset>(`/admin/approved-emails/${encodeURIComponent(address)}/reset-link`),
     onSuccess: setReset,
@@ -67,7 +88,7 @@ function ApprovedEmails() {
     add.mutate();
   }
 
-  const problem = add.error ?? reissue.error ?? resetLink.error ?? remove.error ?? error;
+  const problem = approveRequest.error ?? declineRequest.error ?? requests.error ?? add.error ?? reissue.error ?? resetLink.error ?? remove.error ?? error;
 
   return (
     <div className="flex flex-col gap-4">
@@ -85,6 +106,25 @@ function ApprovedEmails() {
         <CopyLink text={`Send this link to ${reset.email} so they can choose a new password. It works once and expires in an hour.`} url={reset.resetUrl} />
       )}
       {problem && <p className="text-sm text-destructive">{problem.message}</p>}
+      {requests.data && requests.data.length > 0 && (
+        <section className="flex flex-col gap-2">
+          <h2 className="font-medium">Waiting for approval</h2>
+          <ul className="flex flex-col gap-2">
+            {requests.data.map((request) => (
+              <li key={request.email} className="flex items-center gap-2 text-sm">
+                <span>{request.name}</span>
+                <span className="text-muted-foreground">{request.email}</span>
+                <Button size="sm" className="ml-auto" onClick={() => approveRequest.mutate(request.email)}>
+                  Approve
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => declineRequest.mutate(request.email)}>
+                  Decline
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       <ul className="flex flex-col gap-2">
         {data?.map((person) => (
           <li key={person.email} className="flex items-center gap-2 text-sm">

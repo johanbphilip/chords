@@ -63,7 +63,11 @@ export default function SignInPage() {
               Forgot your password?
             </Link>
             <p className="text-sm text-muted-foreground">
-              New here? Ask an Admin for an invite link, then open it to choose your password.
+              New here? Open the invite link an Admin sent you, or{' '}
+              <Link href="/request-access" className="underline">
+                ask for access
+              </Link>
+              .
             </p>
           </form>
         </CardContent>

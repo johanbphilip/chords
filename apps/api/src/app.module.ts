@@ -1,5 +1,7 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
+import { AccessRequestsController } from './auth/access-requests.controller.js';
+import { AccessRequestsService } from './auth/access-requests.service.js';
 import { AdminController } from './auth/admin.controller.js';
 import { AuthController } from './auth/auth.controller.js';
 import { AuthGuard } from './auth/auth.guard.js';
@@ -14,12 +16,13 @@ import { throttlerOptions } from './rate-limit.js';
 
 @Module({
   imports: [ThrottlerModule.forRootAsync({ useFactory: throttlerOptions })],
-  controllers: [HelloController, AuthController, AdminController],
+  controllers: [HelloController, AuthController, AdminController, AccessRequestsController],
   providers: [
     Database,
     EmailService,
     AuthService,
     InvitesService,
+    AccessRequestsService,
     // Throttle first, so a flood of unauthenticated requests is turned away before any session lookup.
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: AuthGuard },
