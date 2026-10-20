@@ -65,7 +65,9 @@ export class AuthService implements OnModuleInit {
     const context = await this.auth.$context;
     const existing = await context.internalAdapter.findUserByEmail(address);
     if (!existing) {
-      await this.auth.api.createUser({ body: { email: address, password, name: address, role: 'admin' } });
+      await this.auth.api.createUser({
+        body: { email: address, password, name: process.env.ADMIN_NAME ?? 'Admin', role: 'admin' },
+      });
       return;
     }
     await context.internalAdapter.updateUser(existing.user.id, { role: 'admin' });
@@ -108,15 +110,15 @@ export class AuthService implements OnModuleInit {
     await this.auth.api.updateUser({ headers: fromNodeHeaders(headers), body: { name: validName(name) } });
   }
 
-  async listApproved(): Promise<{ email: string; role: Role; name: string | null; status: 'invited' | 'active' }[]> {
-    const rows = await this.db.query<{ email: string; role: Role | null; name: string | null }>(
-      `SELECT a.email, u.role, u.name FROM approved_emails a LEFT JOIN "user" u ON u.email = a.email ORDER BY a.email`,
+  async listApproved(): Promise<{ email: string; role: Role; name: string | null; status: 'invited' | 'active' | 'revoked' }[]> {
+    const rows = await this.db.query<{ email: string; role: Role | null; name: string | null; banned: boolean | null }>(
+      `SELECT a.email, u.role, u.name, u.banned FROM approved_emails a LEFT JOIN "user" u ON u.email = a.email ORDER BY a.email`,
     );
     return rows.map((row) => ({
       email: row.email,
       role: row.role ?? 'member',
       name: row.name,
-      status: row.role === null ? 'invited' : 'active',
+      status: row.role === null ? 'invited' : row.banned ? 'revoked' : 'active',
     }));
   }
 
@@ -126,12 +128,12 @@ export class AuthService implements OnModuleInit {
     return { email: address };
   }
 
-  /** Removing an email deletes the account and, through the foreign keys, its sessions. */
+  /** Removes an approved email that never joined. Someone who has joined is revoked instead, to keep their name. */
   async remove(email: string) {
     const address = normaliseEmail(email);
-    const [user] = await this.db.query<{ role: Role }>('SELECT role FROM "user" WHERE email = $1', [address]);
-    if (user?.role === 'admin') throw new ConflictException('The Admin cannot be removed');
-    await this.db.query('DELETE FROM "user" WHERE email = $1', [address]);
+    if (await this.isRegistered(address)) {
+      throw new ConflictException('That person has joined, so revoke their access instead of removing them');
+    }
     await this.db.query('DELETE FROM approved_emails WHERE email = $1', [address]);
   }
 
@@ -142,7 +144,9 @@ export class AuthService implements OnModuleInit {
 
   async memberForHeaders(headers: IncomingHttpHeaders): Promise<Member | undefined> {
     const session = await this.auth.api.getSession({ headers: fromNodeHeaders(headers) });
-    if (!session) return undefined;
+    if (!session || session.user.banned) return undefined;
+    // Approval is checked on every request, so taking someone off the list ends their access immediately.
+    if (!(await this.isApproved(session.user.email))) return undefined;
     return { email: session.user.email, role: session.user.role as Role, name: session.user.name };
   }
 }

@@ -57,13 +57,6 @@ describe('approved emails and roles', () => {
     await http().post('/auth/accept-invite').send({ token, name: 'Late', password: 'correct horse' }).expect(400);
   });
 
-  it('stops a removed Member signing in, even mid-session', async () => {
-    const member = await joinAs(app, admin);
-    await http().delete(`/admin/approved-emails/${encodeURIComponent(member.email)}`).set(bearer(admin)).expect(200);
-    await http().get('/auth/me').set(bearer(member.token)).expect(401);
-    await http().post('/api/auth/sign-in/email').send({ email: member.email, password: member.password }).expect(401);
-  });
-
   it('will not remove the Admin', async () => {
     await http().delete(`/admin/approved-emails/${encodeURIComponent(ADMIN.email)}`).set(bearer(admin)).expect(409);
   });

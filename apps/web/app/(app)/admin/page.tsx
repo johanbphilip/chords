@@ -4,14 +4,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { apiDelete, apiGet, apiPost } from '@/lib/api';
+import { apiDelete, apiGet, apiPost, apiPut } from '@/lib/api';
 import { useMe, type Role } from '@/lib/auth';
 
 interface Approved {
   email: string;
   role: Role;
   name: string | null;
-  status: 'invited' | 'active';
+  status: 'invited' | 'active' | 'revoked';
 }
 
 interface Invite {
@@ -78,6 +78,13 @@ function ApprovedEmails() {
     mutationFn: (address: string) => apiPost<Reset>(`/admin/approved-emails/${encodeURIComponent(address)}/reset-link`),
     onSuccess: setReset,
   });
+  const person = useMutation({
+    mutationFn: ({ address, action, role }: { address: string; action: 'revoke' | 'restore' | 'role'; role?: Role }) =>
+      action === 'role'
+        ? apiPut(`/admin/members/${encodeURIComponent(address)}/role`, { role })
+        : apiPost(`/admin/members/${encodeURIComponent(address)}/${action}`),
+    onSuccess: refresh,
+  });
   const remove = useMutation({
     mutationFn: (address: string) => apiDelete(`/admin/approved-emails/${encodeURIComponent(address)}`),
     onSuccess: refresh,
@@ -88,7 +95,7 @@ function ApprovedEmails() {
     add.mutate();
   }
 
-  const problem = approveRequest.error ?? declineRequest.error ?? requests.error ?? add.error ?? reissue.error ?? resetLink.error ?? remove.error ?? error;
+  const problem = person.error ?? approveRequest.error ?? declineRequest.error ?? requests.error ?? add.error ?? reissue.error ?? resetLink.error ?? remove.error ?? error;
 
   return (
     <div className="flex flex-col gap-4">
@@ -126,38 +133,57 @@ function ApprovedEmails() {
         </section>
       )}
       <ul className="flex flex-col gap-2">
-        {data?.map((person) => (
-          <li key={person.email} className="flex items-center gap-2 text-sm">
-            <span>{person.name ?? person.email}</span>
-            {person.name && <span className="text-muted-foreground">{person.email}</span>}
-            <span className="text-muted-foreground">
-              {person.role === 'admin' ? 'Admin' : person.status === 'active' ? 'Member' : 'Invited'}
+        {data?.map((p) => (
+          <li key={p.email} className="flex flex-wrap items-center gap-2 text-sm">
+            <span>{p.name ?? p.email}</span>
+            {p.name && <span className="text-muted-foreground">{p.email}</span>}
+            <span className="text-muted-foreground">{LABEL[p.status](p.role)}</span>
+            <span className="ml-auto flex gap-1">
+              {p.status === 'invited' && (
+                <>
+                  <Button variant="ghost" size="sm" onClick={() => reissue.mutate(p.email)}>
+                    New invite link
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => remove.mutate(p.email)}>
+                    Remove
+                  </Button>
+                </>
+              )}
+              {p.status === 'active' && (
+                <>
+                  <Button variant="ghost" size="sm" onClick={() => resetLink.mutate(p.email)}>
+                    Reset link
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => person.mutate({ address: p.email, action: 'role', role: p.role === 'admin' ? 'member' : 'admin' })}
+                  >
+                    {p.role === 'admin' ? 'Make Member' : 'Make Admin'}
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => person.mutate({ address: p.email, action: 'revoke' })}>
+                    Revoke
+                  </Button>
+                </>
+              )}
+              {p.status === 'revoked' && (
+                <Button variant="ghost" size="sm" onClick={() => person.mutate({ address: p.email, action: 'restore' })}>
+                  Restore
+                </Button>
+              )}
             </span>
-            {person.status === 'active' && (
-              <Button variant="ghost" size="sm" className="ml-auto" onClick={() => resetLink.mutate(person.email)}>
-                Reset link
-              </Button>
-            )}
-            {person.status === 'invited' && (
-              <Button variant="ghost" size="sm" className="ml-auto" onClick={() => reissue.mutate(person.email)}>
-                New invite link
-              </Button>
-            )}
-            {person.role !== 'admin' && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => remove.mutate(person.email)}
-              >
-                Remove
-              </Button>
-            )}
           </li>
         ))}
       </ul>
     </div>
   );
 }
+
+const LABEL = {
+  invited: () => 'Invited',
+  active: (role: Role) => (role === 'admin' ? 'Admin' : 'Member'),
+  revoked: () => 'Revoked',
+};
 
 function CopyLink({ text, url }: { text: string; url: string }) {
   const [copied, setCopied] = useState(false);

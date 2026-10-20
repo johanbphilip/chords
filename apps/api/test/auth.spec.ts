@@ -15,7 +15,7 @@ describe('signing in', () => {
   it('signs the seeded Admin in and identifies them', async () => {
     const token = await signIn(app, ADMIN.email, ADMIN.password);
     const me = await request(app.getHttpServer()).get('/auth/me').set(bearer(token)).expect(200);
-    expect(me.body).toEqual({ email: ADMIN.email, role: 'admin', name: ADMIN.email });
+    expect(me.body).toEqual({ email: ADMIN.email, role: 'admin', name: 'Admin' });
   });
 
   it('refuses a wrong password and an unknown email alike', async () => {
