@@ -1,23 +1,4 @@
-export interface PlacedChord {
-  chord: string;
-  at: number;
-}
-
-export interface SheetLine {
-  lyric: string;
-  chords: PlacedChord[];
-}
-
-export interface SheetSection {
-  name: string;
-  lines: SheetLine[];
-}
-
-/** A Song's stored content: each Section once, plus the original order as Section names. */
-export interface ChordSheet {
-  sections: SheetSection[];
-  order: string[];
-}
+import type { ChordSheet } from '@chords/shared';
 
 export interface SongSummary {
   id: string;

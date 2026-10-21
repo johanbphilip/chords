@@ -1,5 +1,6 @@
 packages:
   - apps/*
+  - packages/*
 allowBuilds:
   '@embedded-postgres/darwin-arm64': true
   '@parcel/watcher': false

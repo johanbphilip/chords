@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { findAmbiguousLines, parseChordSheet, renderChordSheet, suggestKey, transposeChordSheet, transposeKey } from '../src/chord-sheet/index.js';
+import { findAmbiguousLines, parseChordSheet, renderChordSheet, suggestKey, transposeChordSheet, transposeKey } from '../src';
 
 describe('parsing and rendering', () => {
   it('attaches chords above a lyric line to lyric positions', () => {

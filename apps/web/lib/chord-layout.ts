@@ -1,4 +1,4 @@
-import type { SheetLine } from './songs';
+import type { SheetLine } from '@chords/shared';
 
 /** A stretch of lyric with the chord that sits over its first letter, if any. */
 export interface Piece {

@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import { isChord, parseChordSheet, type ChordSheet, type SheetSection } from '../chord-sheet/index.js';
+import { isChord, parseChordSheet, type ChordSheet, type SheetSection } from '@chords/shared';
 
 /** A Song's details and content once checked: what the service stores. */
 export interface SongInput {

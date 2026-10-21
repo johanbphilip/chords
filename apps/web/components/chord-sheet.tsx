@@ -1,5 +1,5 @@
 import { layoutLine } from '@/lib/chord-layout';
-import type { ChordSheet as ChordSheetContent, SheetLine } from '@/lib/songs';
+import type { ChordSheet as ChordSheetContent, SheetLine } from '@chords/shared';
 
 export function ChordLine({ line }: { line: SheetLine }) {
   if (line.lyric === '' && line.chords.length === 0) return <div className="h-4" />;

@@ -1,4 +1,4 @@
-import type { ChordSheet, PlacedChord, SheetLine } from './songs';
+import type { ChordSheet, PlacedChord, SheetLine } from '@chords/shared';
 
 /** A line in review, flagged when the parser read it as chords but it may be words. */
 export interface ReviewLine extends SheetLine {

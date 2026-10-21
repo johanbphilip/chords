@@ -1,5 +1,5 @@
 import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { renderChordSheet, type ChordSheet } from '../chord-sheet/index.js';
+import { renderChordSheet, type ChordSheet } from '@chords/shared';
 import { Database } from '../database.js';
 import type { SongInput } from './song-input.js';
 

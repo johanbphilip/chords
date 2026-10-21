@@ -1,5 +1,5 @@
 import { Body, Controller, Get, HttpCode, Inject, Param, Post, Put } from '@nestjs/common';
-import { findAmbiguousLines, parseChordSheet, suggestKey } from '../chord-sheet/index.js';
+import { findAmbiguousLines, parseChordSheet, suggestKey } from '@chords/shared';
 import { readPastedText, readSongInput } from './song-input.js';
 import { SongsService } from './songs.service.js';
 
