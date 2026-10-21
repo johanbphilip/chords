@@ -1,23 +1,22 @@
 'use client';
 
+import { signInSchema } from '@chords/shared';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState, type FormEvent } from 'react';
-import { Button } from '@/components/ui/button';
+import { FormError } from '@/components/form/form-error';
+import { settled, formProps, useAppForm } from '@/components/form/form';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { FieldGroup } from '@/components/ui/field';
 import { authClient } from '@/lib/auth-client';
 
 export default function SignInPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
 
-  const submit = useMutation({
-    mutationFn: async () => {
-      const { error } = await authClient.signIn.email({ email, password });
+  const signIn = useMutation({
+    mutationFn: async (credentials: { email: string; password: string }) => {
+      const { error } = await authClient.signIn.email(credentials);
       if (error) throw new Error(error.message ?? 'Wrong email or password');
     },
     onSuccess: async () => {
@@ -26,10 +25,11 @@ export default function SignInPage() {
     },
   });
 
-  function onSubmit(event: FormEvent) {
-    event.preventDefault();
-    submit.mutate();
-  }
+  const form = useAppForm({
+    defaultValues: { email: '', password: '' },
+    validators: { onChange: signInSchema, onSubmit: signInSchema },
+    onSubmit: ({ value }) => settled(signIn.mutateAsync(signInSchema.parse(value))),
+  });
 
   return (
     <main className="mx-auto max-w-sm p-4">
@@ -38,37 +38,29 @@ export default function SignInPage() {
           <CardTitle>Sign in to Chords</CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={onSubmit} className="flex flex-col gap-3">
-            <Input
-              type="email"
-              placeholder="Email"
-              autoComplete="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-            <Input
-              type="password"
-              placeholder="Password"
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-            {submit.error && <p className="text-sm text-destructive">{submit.error.message}</p>}
-            <Button type="submit" disabled={submit.isPending}>
-              Sign in
-            </Button>
-            <Link href="/forgot-password" className="text-sm underline">
-              Forgot your password?
-            </Link>
-            <p className="text-sm text-muted-foreground">
-              New here? Open the invite link an Admin sent you, or{' '}
-              <Link href="/request-access" className="underline">
-                ask for access
+          <form {...formProps(form)}>
+            <FieldGroup>
+              <form.AppField name="email">
+                {(field) => <field.TextField label="Email" type="email" autoComplete="email" />}
+              </form.AppField>
+              <form.AppField name="password">
+                {(field) => <field.TextField label="Password" type="password" autoComplete="current-password" />}
+              </form.AppField>
+              <FormError error={signIn.error} />
+              <form.AppForm>
+                <form.SubmitButton pendingLabel="Signing in…">Sign in</form.SubmitButton>
+              </form.AppForm>
+              <Link href="/forgot-password" className="text-sm underline">
+                Forgot your password?
               </Link>
-              .
-            </p>
+              <p className="text-sm text-muted-foreground">
+                New here? Open the invite link an Admin sent you, or{' '}
+                <Link href="/request-access" className="underline">
+                  ask for access
+                </Link>
+                .
+              </p>
+            </FieldGroup>
           </form>
         </CardContent>
       </Card>

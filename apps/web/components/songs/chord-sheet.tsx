@@ -1,4 +1,4 @@
-import { layoutLine } from '@/lib/chord-layout';
+import { layoutLine } from '@/lib/songs/chord-layout';
 import type { ChordSheet as ChordSheetContent, SheetLine } from '@chords/shared';
 
 export function ChordLine({ line }: { line: SheetLine }) {

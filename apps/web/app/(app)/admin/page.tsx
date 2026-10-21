@@ -1,8 +1,13 @@
 'use client';
 
+import { approveEmailSchema } from '@chords/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState, type FormEvent } from 'react';
+import { useState } from 'react';
+import { FormError } from '@/components/form/form-error';
+import { formProps, useAppForm } from '@/components/form/form';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { apiDelete, apiGet, apiPost, apiPut } from '@/lib/api';
 import { useMe, type Role } from '@/lib/auth';
@@ -38,7 +43,6 @@ export default function AdminPage() {
 
 function ApprovedEmails() {
   const queryClient = useQueryClient();
-  const [email, setEmail] = useState('');
   const [invite, setInvite] = useState<Invite | null>(null);
   const [reset, setReset] = useState<Reset | null>(null);
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['approved-emails'] });
@@ -48,11 +52,18 @@ function ApprovedEmails() {
     queryFn: () => apiGet<Approved[]>('/admin/approved-emails'),
   });
   const add = useMutation({
-    mutationFn: () => apiPost<Invite>('/admin/approved-emails', { email }),
+    mutationFn: (email: string) => apiPost<Invite>('/admin/approved-emails', { email }),
     onSuccess: (created) => {
-      setEmail('');
       setInvite(created);
       return refresh();
+    },
+  });
+  const approveForm = useAppForm({
+    defaultValues: { email: '' },
+    validators: { onChange: approveEmailSchema, onSubmit: approveEmailSchema },
+    onSubmit: async ({ value, formApi }) => {
+      const approved = await add.mutateAsync(approveEmailSchema.parse(value).email).then(() => true, () => false);
+      if (approved) formApi.reset();
     },
   });
   const reissue = useMutation({
@@ -90,21 +101,18 @@ function ApprovedEmails() {
     onSuccess: refresh,
   });
 
-  function onSubmit(event: FormEvent) {
-    event.preventDefault();
-    add.mutate();
-  }
-
   const problem = person.error ?? approveRequest.error ?? declineRequest.error ?? requests.error ?? add.error ?? reissue.error ?? resetLink.error ?? remove.error ?? error;
 
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-xl font-medium">Who may sign in</h1>
-      <form onSubmit={onSubmit} className="flex gap-2">
-        <Input type="email" placeholder="Email to approve" required value={email} onChange={(e) => setEmail(e.target.value)} />
-        <Button type="submit" disabled={add.isPending}>
-          Approve
-        </Button>
+      <form {...formProps(approveForm)} className="flex items-start gap-2">
+        <approveForm.AppField name="email">
+          {(field) => <field.TextField label="Email to approve" hideLabel type="email" placeholder="Email to approve" className="flex-1" />}
+        </approveForm.AppField>
+        <approveForm.AppForm>
+          <approveForm.SubmitButton pendingLabel="Approving…">Approve</approveForm.SubmitButton>
+        </approveForm.AppForm>
       </form>
       {invite?.inviteUrl && (
         <CopyLink text={`Send this link to ${invite.email}. It works once and expires in 7 days. It is shown only now.`} url={invite.inviteUrl} />
@@ -112,7 +120,7 @@ function ApprovedEmails() {
       {reset && (
         <CopyLink text={`Send this link to ${reset.email} so they can choose a new password. It works once and expires in an hour.`} url={reset.resetUrl} />
       )}
-      {problem && <p className="text-sm text-destructive">{problem.message}</p>}
+      <FormError error={problem ?? null} />
       {requests.data && requests.data.length > 0 && (
         <section className="flex flex-col gap-2">
           <h2 className="font-medium">Waiting for approval</h2>
@@ -137,7 +145,7 @@ function ApprovedEmails() {
           <li key={p.email} className="flex flex-wrap items-center gap-2 text-sm">
             <span>{p.name ?? p.email}</span>
             {p.name && <span className="text-muted-foreground">{p.email}</span>}
-            <span className="text-muted-foreground">{LABEL[p.status](p.role)}</span>
+            <Badge variant={p.status === 'revoked' ? 'destructive' : p.status === 'invited' ? 'outline' : 'secondary'}>{LABEL[p.status](p.role)}</Badge>
             <span className="ml-auto flex gap-1">
               {p.status === 'invited' && (
                 <>
@@ -188,20 +196,22 @@ const LABEL = {
 function CopyLink({ text, url }: { text: string; url: string }) {
   const [copied, setCopied] = useState(false);
   return (
-    <div className="flex flex-col gap-2 rounded-lg border p-3 text-sm">
-      <p>{text}</p>
-      <div className="flex gap-2">
-        <Input readOnly value={url} onFocus={(e) => e.currentTarget.select()} aria-label="Link to send" />
-        <Button
-          type="button"
-          onClick={async () => {
-            await navigator.clipboard.writeText(url);
-            setCopied(true);
-          }}
-        >
-          {copied ? 'Copied' : 'Copy'}
-        </Button>
-      </div>
-    </div>
+    <Card size="sm">
+      <CardContent className="flex flex-col gap-2 text-sm">
+        <p>{text}</p>
+        <div className="flex gap-2">
+          <Input readOnly value={url} onFocus={(e) => e.currentTarget.select()} aria-label="Link to send" />
+          <Button
+            type="button"
+            onClick={async () => {
+              await navigator.clipboard.writeText(url);
+              setCopied(true);
+            }}
+          >
+            {copied ? 'Copied' : 'Copy'}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

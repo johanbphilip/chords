@@ -1,11 +1,12 @@
 'use client';
 
+import { acceptInviteSchema } from '@chords/shared';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
-import { useState, type FormEvent } from 'react';
-import { Button } from '@/components/ui/button';
+import { FormError } from '@/components/form/form-error';
+import { settled, formProps, useAppForm } from '@/components/form/form';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { FieldGroup } from '@/components/ui/field';
 import { apiPost } from '@/lib/api';
 import { authClient } from '@/lib/auth-client';
 
@@ -13,15 +14,16 @@ interface Accepted {
   member: { email: string };
 }
 
+/** What the person types; the invite's token comes from the link. */
+const joinSchema = acceptInviteSchema.pick({ name: true, password: true });
+
 export default function InvitePage() {
   const { token } = useParams<{ token: string }>();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const [name, setName] = useState('');
-  const [password, setPassword] = useState('');
 
   const join = useMutation({
-    mutationFn: async () => {
+    mutationFn: async ({ name, password }: { name: string; password: string }) => {
       const { member } = await apiPost<Accepted>('/auth/accept-invite', { token, name, password });
       const { error } = await authClient.signIn.email({ email: member.email, password });
       // The invite is spent by now, so a failed sign-in here must send them to the normal form.
@@ -33,10 +35,11 @@ export default function InvitePage() {
     },
   });
 
-  function onSubmit(event: FormEvent) {
-    event.preventDefault();
-    join.mutate();
-  }
+  const form = useAppForm({
+    defaultValues: { name: '', password: '' },
+    validators: { onChange: joinSchema, onSubmit: joinSchema },
+    onSubmit: ({ value }) => settled(join.mutateAsync(joinSchema.parse(value))),
+  });
 
   return (
     <main className="mx-auto max-w-sm p-4">
@@ -45,21 +48,19 @@ export default function InvitePage() {
           <CardTitle>Welcome to Chords</CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={onSubmit} className="flex flex-col gap-3">
-            <Input placeholder="Your name" autoComplete="name" required value={name} onChange={(e) => setName(e.target.value)} />
-            <Input
-              type="password"
-              placeholder="Choose a password (8+ characters)"
-              autoComplete="new-password"
-              minLength={8}
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-            {join.error && <p className="text-sm text-destructive">{join.error.message}</p>}
-            <Button type="submit" disabled={join.isPending}>
-              Join
-            </Button>
+          <form {...formProps(form)}>
+            <FieldGroup>
+              <form.AppField name="name">
+                {(field) => <field.TextField label="Your name" autoComplete="name" description="Shown to other Members next to your work." />}
+              </form.AppField>
+              <form.AppField name="password">
+                {(field) => <field.TextField label="Choose a password" type="password" autoComplete="new-password" description="At least 8 characters." />}
+              </form.AppField>
+              <FormError error={join.error} />
+              <form.AppForm>
+                <form.SubmitButton pendingLabel="Joining…">Join</form.SubmitButton>
+              </form.AppForm>
+            </FieldGroup>
           </form>
         </CardContent>
       </Card>

@@ -1,22 +1,22 @@
 'use client';
 
+import { requestAccessSchema } from '@chords/shared';
 import { useMutation } from '@tanstack/react-query';
 import Link from 'next/link';
-import { useState, type FormEvent } from 'react';
-import { Button } from '@/components/ui/button';
+import { FormError } from '@/components/form/form-error';
+import { settled, formProps, useAppForm } from '@/components/form/form';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { FieldGroup } from '@/components/ui/field';
 import { apiPost } from '@/lib/api';
 
 export default function RequestAccessPage() {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const ask = useMutation({ mutationFn: () => apiPost('/auth/request-access', { name, email }) });
+  const ask = useMutation({ mutationFn: (request: { name: string; email: string }) => apiPost('/auth/request-access', request) });
 
-  function onSubmit(event: FormEvent) {
-    event.preventDefault();
-    ask.mutate();
-  }
+  const form = useAppForm({
+    defaultValues: { name: '', email: '' },
+    validators: { onChange: requestAccessSchema, onSubmit: requestAccessSchema },
+    onSubmit: ({ value }) => settled(ask.mutateAsync(requestAccessSchema.parse(value))),
+  });
 
   return (
     <main className="mx-auto max-w-sm p-4">
@@ -28,13 +28,17 @@ export default function RequestAccessPage() {
           {ask.isSuccess ? (
             <p>Thank you. Your request was received and is waiting for approval. An Admin will send you an invite link.</p>
           ) : (
-            <form onSubmit={onSubmit} className="flex flex-col gap-3">
-              <Input placeholder="Your name" autoComplete="name" required value={name} onChange={(e) => setName(e.target.value)} />
-              <Input type="email" placeholder="Email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-              {ask.error && <p className="text-sm text-destructive">{ask.error.message}</p>}
-              <Button type="submit" disabled={ask.isPending}>
-                Request access
-              </Button>
+            <form {...formProps(form)}>
+              <FieldGroup>
+                <form.AppField name="name">{(field) => <field.TextField label="Your name" autoComplete="name" />}</form.AppField>
+                <form.AppField name="email">
+                  {(field) => <field.TextField label="Email" type="email" autoComplete="email" />}
+                </form.AppField>
+                <FormError error={ask.error} />
+                <form.AppForm>
+                  <form.SubmitButton pendingLabel="Sending…">Request access</form.SubmitButton>
+                </form.AppForm>
+              </FieldGroup>
             </form>
           )}
           <Link href="/sign-in" className="text-sm underline">

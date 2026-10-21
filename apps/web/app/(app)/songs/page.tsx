@@ -2,9 +2,10 @@
 
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
+import { FormError } from '@/components/form/form-error';
 import { buttonVariants } from '@/components/ui/button';
 import { apiGet } from '@/lib/api';
-import type { SongSummary } from '@/lib/songs';
+import type { SongSummary } from '@/lib/songs/types';
 
 export default function SongsPage() {
   const { data: songs, error } = useQuery({ queryKey: ['songs'], queryFn: () => apiGet<SongSummary[]>('/songs') });
@@ -22,7 +23,7 @@ export default function SongsPage() {
           </Link>
         </div>
       </div>
-      {error && <p role="alert">{error.message}</p>}
+      <FormError error={error} />
       {songs?.length === 0 && <p className="text-muted-foreground">No Songs yet.</p>}
       <ul className="flex flex-col divide-y">
         {songs?.map((song) => (

@@ -1,20 +1,21 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { SavedNotice } from '@/components/saved-notice';
-import { SheetPreview } from '@/components/sheet-preview';
-import { SongForm } from '@/components/song-form';
-import { apiGet, apiPut, existingSongId } from '@/lib/api';
-import { songBody, songToForm, type Saved, type Song, type SongForm as SongFormValues } from '@/lib/songs';
+import { FormError } from '@/components/form/form-error';
+import { SavedNotice } from '@/components/songs/saved-notice';
+import { SongError } from '@/components/songs/song-error';
+import { SongForm } from '@/components/songs/song-form';
+import { apiGet, apiPut } from '@/lib/api';
+import { songToForm, type SongBody } from '@/lib/songs/form';
+import type { Saved, Song } from '@/lib/songs/types';
 
 export default function EditSongPage() {
   const { id } = useParams<{ id: string }>();
   const { data: song, error } = useQuery({ queryKey: ['song', id], queryFn: () => apiGet<Song>(`/songs/${id}`) });
 
-  if (error) return <p role="alert">{error.message}</p>;
+  if (error) return <FormError error={error} />;
   if (!song) return null;
   return <Editor song={song} />;
 }
@@ -22,11 +23,10 @@ export default function EditSongPage() {
 function Editor({ song }: { song: Song }) {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const [form, setForm] = useState<SongFormValues>(() => songToForm(song));
   const [saved, setSaved] = useState<Saved | null>(null);
 
   const save = useMutation({
-    mutationFn: () => apiPut<Saved>(`/songs/${song.id}`, songBody(form)),
+    mutationFn: (body: SongBody) => apiPut<Saved>(`/songs/${song.id}`, body),
     onSuccess: async (updated) => {
       await Promise.all([queryClient.invalidateQueries({ queryKey: ['songs'] }), queryClient.invalidateQueries({ queryKey: ['song', song.id] })]);
       // Changing the title or artist can leave a same-title Song by someone else, so say so before moving on.
@@ -34,37 +34,18 @@ function Editor({ song }: { song: Song }) {
       else setSaved(updated);
     },
   });
+
   if (saved) return <SavedNotice id={saved.id} similar={saved.similar} />;
-  const existingId = existingSongId(save.error);
 
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-xl font-medium">Edit song</h1>
-      <SongForm
-        value={form}
-        onChange={setForm}
-        onSubmit={save.mutate}
-        submitLabel="Save changes"
-        pending={save.isPending}
-        preview={<SheetPreview text={form.text} />}
-      >
+      <SongForm initial={songToForm(song)} onSave={save.mutateAsync} submitLabel="Save changes">
         <p className="text-xs text-muted-foreground">
           Add, rename or remove a Section by changing its [header]. A Section sung twice appears twice; if you change only one copy it becomes its own
           Section (for example "Chorus 2"), so change both.
         </p>
-        {save.error && (
-          <p role="alert" className="text-sm text-destructive">
-            {save.error.message}
-            {existingId && (
-              <>
-                {' '}
-                <Link href={`/songs/${existingId}`} className="underline">
-                  Open it
-                </Link>
-              </>
-            )}
-          </p>
-        )}
+        <SongError error={save.error} />
       </SongForm>
     </div>
   );

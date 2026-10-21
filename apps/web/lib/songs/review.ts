@@ -37,7 +37,8 @@ export function startReview(content: ChordSheet, ambiguous: { section: string; l
 
 /** The stored form the API validates: names instead of keys, and no review flags. */
 export function toContent(draft: Draft): ChordSheet {
-  const name = (key: number) => draft.sections.find((section) => section.key === key)!.name.trim();
+  // While an edit is half applied, the order can name a Section that is gone; that is reported, not thrown.
+  const name = (key: number) => draft.sections.find((section) => section.key === key)?.name.trim() ?? '';
   return {
     sections: draft.sections.map((section) => ({
       name: section.name.trim(),
@@ -46,25 +47,6 @@ export function toContent(draft: Draft): ChordSheet {
     order: draft.order.map(name),
   };
 }
-
-/** Why the draft cannot be saved yet, in words for the Member. Empty when it can. */
-export function problems(draft: Draft): string[] {
-  const found: string[] = [];
-  const names = draft.sections.map((section) => section.name.trim());
-  if (names.includes('')) found.push('Every Section needs a name. Name the unplaced text, or merge it into a Section.');
-  for (const name of new Set(names.filter((name, i) => name !== '' && names.indexOf(name) !== i))) {
-    found.push(`Two Sections are named "${name}". Rename one, or merge them.`);
-  }
-  for (const section of draft.sections) {
-    if (!draft.order.includes(section.key)) found.push(`"${section.name.trim() || 'Unnamed'}" is not in the order, so it would be lost. Add it.`);
-  }
-  return found;
-}
-
-export const renameSection = (draft: Draft, key: number, name: string): Draft => ({
-  ...draft,
-  sections: draft.sections.map((section) => (section.key === key ? { ...section, name } : section)),
-});
 
 /** Lines from `at` onward become a new unnamed Section straight after, wherever the Song repeats the original. */
 export function splitSection(draft: Draft, key: number, at: number): Draft {
@@ -112,10 +94,6 @@ export function treatAsLyric(draft: Draft, key: number, lineIndex: number): Draf
   };
 }
 
-export const setOrderEntry = (draft: Draft, index: number, key: number): Draft => ({
-  ...draft,
-  order: draft.order.map((k, i) => (i === index ? key : k)),
-});
 export const removeOrderEntry = (draft: Draft, index: number): Draft => ({
   ...draft,
   order: draft.order.filter((_, i) => i !== index),
