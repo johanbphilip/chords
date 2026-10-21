@@ -33,13 +33,34 @@ export class SongsService {
   constructor(@Inject(Database) private readonly db: Database) {}
 
   async create(body: SongInput) {
-    let row: SongRow;
-    try {
-      [row] = (await this.db.query<SongRow>(
+    return this.saved(
+      this.db.query<SongRow>(
         `INSERT INTO songs (title, artist, musical_key, tempo, time_signature, content)
          VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
         [body.title, body.artist, body.key, body.tempo, body.timeSignature, JSON.stringify(body.content)],
-      )) as [SongRow];
+      ),
+      body,
+    );
+  }
+
+  /** Replaces a Song's details and content, which is how an edit and "write over" an existing Song both work. */
+  async update(id: string, body: SongInput) {
+    if (!UUID.test(id)) throw new NotFoundException('Song not found');
+    return this.saved(
+      this.db.query<SongRow>(
+        `UPDATE songs SET title = $2, artist = $3, musical_key = $4, tempo = $5, time_signature = $6, content = $7,
+           updated_at = now() WHERE id = $1 RETURNING *`,
+        [id, body.title, body.artist, body.key, body.tempo, body.timeSignature, JSON.stringify(body.content)],
+      ),
+      body,
+    );
+  }
+
+  /** Waits for a write, turning "another Song has this title and artist" into a 409 that names that Song. */
+  private async saved(write: Promise<SongRow[]>, body: SongInput) {
+    let row: SongRow | undefined;
+    try {
+      [row] = await write;
     } catch (error) {
       if ((error as { code?: string }).code !== UNIQUE_VIOLATION) throw error;
       const [existing] = await this.db.query<{ id: string }>(
@@ -51,6 +72,7 @@ export class SongsService {
         existingId: existing?.id,
       });
     }
+    if (!row) throw new NotFoundException('Song not found');
     return { ...toSong(row), similar: await this.sameTitleByOthers(row) };
   }
 

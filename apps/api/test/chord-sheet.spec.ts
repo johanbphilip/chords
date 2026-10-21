@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseChordSheet, renderChordSheet, transposeChordSheet, transposeKey } from '../src/chord-sheet/index.js';
+import { findAmbiguousLines, parseChordSheet, renderChordSheet, suggestKey, transposeChordSheet, transposeKey } from '../src/chord-sheet/index.js';
 
 describe('parsing and rendering', () => {
   it('attaches chords above a lyric line to lyric positions', () => {
@@ -165,5 +165,55 @@ describe('transposing', () => {
     expect(transposeKey('Em', 3)).toBe('Gm');
     expect(transposeKey('A', 1)).toBe('Bb');
     expect(transposeKey('F#m', -1)).toBe('Fm');
+  });
+});
+
+describe('suggesting a Key', () => {
+  const suggest = (text: string) => suggestKey(parseChordSheet(text));
+
+  it.each([
+    ['G\nAmazing', 'G'],
+    ['Am7\nI once was lost', 'Am'],
+    ['F#m\nlyric', 'F#m'],
+    ['Bb/D\nlyric', 'Bb'],
+    ['Gmaj7\nlyric', 'G'],
+    ['Dsus4\nlyric', 'D'],
+    ['Cmin\nlyric', 'Cm'],
+    ['CM7\nlyric', 'C'],
+  ])('takes the Key from the first chord of %j: %s', (text, key) => {
+    expect(suggest(text)).toBe(key);
+  });
+
+  it('uses the first chord in the Song\'s order, not in the order Sections are stored', () => {
+    const sheet = parseChordSheet('[Chorus]\nD\nHow sweet\n\n[Verse]\nG\nAmazing');
+    expect(suggestKey({ ...sheet, order: ['Verse', 'Chorus'] })).toBe('G');
+  });
+
+  it('has no suggestion when the Song has no chords', () => {
+    expect(suggest('just words\nand more')).toBeNull();
+    expect(suggest('')).toBeNull();
+  });
+});
+
+describe('chord lines that may be words', () => {
+  const ambiguous = (text: string) => findAmbiguousLines(parseChordSheet(text));
+
+  it('flags a line that is only "A" or "Am", since the parser cannot tell a chord from a word', () => {
+    expect(ambiguous('[Verse]\nA\nI wandered lonely')).toEqual([{ section: 'Verse', line: 0 }]);
+    expect(ambiguous('[Verse]\nG\nHello\nAm')).toEqual([{ section: 'Verse', line: 1 }]);
+    expect(ambiguous('[Verse]\nA   Am\nlyric')).toEqual([{ section: 'Verse', line: 0 }]);
+  });
+
+  it('does not flag a line that has any other chord', () => {
+    expect(ambiguous('[Verse]\nA   D\nlyric')).toEqual([]);
+    expect(ambiguous('[Verse]\nG\nlyric\nEm\nlyric')).toEqual([]);
+  });
+
+  it('does not flag lyric lines', () => {
+    expect(ambiguous('[Verse]\nHello there\nAm I wrong')).toEqual([]);
+  });
+
+  it('reports the line by Section name and position within it', () => {
+    expect(ambiguous('[Verse]\nG\nlyric\n\n[Chorus]\nlyric\nAm\nmore')).toEqual([{ section: 'Chorus', line: 1 }]);
   });
 });

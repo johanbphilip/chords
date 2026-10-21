@@ -1,7 +1,7 @@
 import { layoutLine } from '@/lib/chord-layout';
 import type { ChordSheet as ChordSheetContent, SheetLine } from '@/lib/songs';
 
-function Line({ line }: { line: SheetLine }) {
+export function ChordLine({ line }: { line: SheetLine }) {
   if (line.lyric === '' && line.chords.length === 0) return <div className="h-4" />;
   return (
     <div className="leading-tight">
@@ -27,7 +27,7 @@ export function ChordSheet({ content }: { content: ChordSheetContent }) {
       {content.order.map((name, i) => (
         <section key={i} className="flex flex-col gap-1">
           {name && <h2 className="text-sm font-medium text-muted-foreground">{name}</h2>}
-          {byName.get(name)?.lines.map((line, l) => <Line key={l} line={line} />)}
+          {byName.get(name)?.lines.map((line, l) => <ChordLine key={l} line={line} />)}
         </section>
       ))}
     </div>

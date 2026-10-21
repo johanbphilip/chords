@@ -13,9 +13,14 @@ export default function SongsPage() {
     <div className="flex flex-col gap-4">
       <div className="flex items-center">
         <h1 className="text-xl font-medium">Songs</h1>
-        <Link href="/songs/new" className={buttonVariants({ size: 'sm' }) + ' ml-auto'}>
-          New song
-        </Link>
+        <div className="ml-auto flex gap-2">
+          <Link href="/songs/import" className={buttonVariants({ variant: 'outline', size: 'sm' })}>
+            Import
+          </Link>
+          <Link href="/songs/new" className={buttonVariants({ size: 'sm' })}>
+            New song
+          </Link>
+        </div>
       </div>
       {error && <p role="alert">{error.message}</p>}
       {songs?.length === 0 && <p className="text-muted-foreground">No Songs yet.</p>}
