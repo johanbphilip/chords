@@ -37,6 +37,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         <Link href="/" className="font-medium">
           Explore
         </Link>
+        <Link href="/songs" className="text-sm text-muted-foreground">
+          Songs
+        </Link>
         {me.role === 'admin' && (
           <Link href="/admin" className="text-sm text-muted-foreground">
             Admin

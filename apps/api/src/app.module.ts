@@ -15,10 +15,12 @@ import { Database } from './database.js';
 import { EmailService } from './email.service.js';
 import { HelloController } from './hello.controller.js';
 import { AppThrottlerGuard, throttlerOptions } from './rate-limit.js';
+import { SongsController } from './songs/songs.controller.js';
+import { SongsService } from './songs/songs.service.js';
 
 @Module({
   imports: [ThrottlerModule.forRootAsync({ useFactory: throttlerOptions })],
-  controllers: [HelloController, AuthController, AdminController, AccessRequestsController, AdminMembersController, MembersController],
+  controllers: [HelloController, AuthController, AdminController, AccessRequestsController, AdminMembersController, MembersController, SongsController],
   providers: [
     Database,
     EmailService,
@@ -26,6 +28,7 @@ import { AppThrottlerGuard, throttlerOptions } from './rate-limit.js';
     InvitesService,
     AccessRequestsService,
     MembersService,
+    SongsService,
     // Throttle first, so a flood of unauthenticated requests is turned away before any session lookup.
     { provide: APP_GUARD, useClass: AppThrottlerGuard },
     { provide: APP_GUARD, useClass: AuthGuard },

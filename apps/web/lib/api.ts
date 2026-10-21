@@ -5,6 +5,8 @@ export class ApiError extends Error {
   constructor(
     readonly status: number,
     message: string,
+    /** The error body, for callers that need more than the message (e.g. `existingId` on a duplicate Song). */
+    readonly payload: Record<string, unknown> | null = null,
   ) {
     super(message);
   }
@@ -25,9 +27,9 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (!res.ok) {
-    const payload = (await res.json().catch(() => null)) as { message?: string | string[] } | null;
+    const payload = (await res.json().catch(() => null)) as ({ message?: string | string[] } & Record<string, unknown>) | null;
     const message = [payload?.message].flat()[0];
-    throw new ApiError(res.status, message ?? `API error ${res.status}`);
+    throw new ApiError(res.status, message ?? `API error ${res.status}`, payload);
   }
   return (await res.json()) as T;
 }
