@@ -82,15 +82,15 @@ describe('importing a pasted Song', () => {
       const first = await create({ title: uniqueTitle(), artist: 'A' }).expect(201);
       const other = await create({ title: uniqueTitle(), artist: 'B' }).expect(201);
       const first_ = await read(first.body.id);
-      const res = await put(other.body.id, { title: first_.title, artist: first_.artist }).expect(409);
+      const res = await put(other.body.id, { title: first_.title, artist: first_.artist, text: '' }).expect(409);
       expect(res.body.existingId).toBe(first.body.id);
     });
 
     it('answers 404 for a Song that does not exist, 400 for details that make no sense, 401 signed out', async () => {
-      await put('00000000-0000-4000-8000-000000000000', { title: 'x' }).expect(404);
+      await put('00000000-0000-4000-8000-000000000000', { title: 'x', text: '' }).expect(404);
       const song = await create({ title: uniqueTitle() }).expect(201);
-      await put(song.body.id, { title: '  ' }).expect(400);
-      await http().put(`/songs/${song.body.id}`).send({ title: 'x' }).expect(401);
+      await put(song.body.id, { title: '  ', text: '' }).expect(400);
+      await http().put(`/songs/${song.body.id}`).send({ title: 'x', text: '' }).expect(401);
     });
   });
 

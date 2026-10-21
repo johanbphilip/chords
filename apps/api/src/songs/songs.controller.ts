@@ -37,6 +37,6 @@ export class SongsController {
 
   @Put(':id')
   update(@Param('id') id: string, @Body() body: Record<string, unknown>) {
-    return this.songs.update(id, readSongInput(body));
+    return this.songs.update(id, readSongInput(body, { requireContent: true }));
   }
 }

@@ -130,6 +130,70 @@ describe('creating and reading a Song', () => {
     });
   });
 
+  describe('editing a Song', () => {
+    const edit = (id: string, body: object, token = member) => http().put(`/songs/${id}`).set(bearer(token)).send(body);
+    const TEXT = '[Verse]\nG       C\nAmazing grace\n\n[Chorus]\nD\nHow sweet\n\n[Verse]\nG       C\nAmazing grace';
+
+    it('hands back the text to edit: chords above lyrics, Sections in their original order', async () => {
+      const created = await create({ title: uniqueTitle(), text: TEXT }).expect(201);
+      expect((await read(created.body.id).expect(200)).body.text).toBe(TEXT);
+    });
+
+    it('saves the text exactly as it was sent back, so opening and saving changes nothing', async () => {
+      const created = await create({ title: uniqueTitle(), text: TEXT }).expect(201);
+      const before = (await read(created.body.id).expect(200)).body;
+      await edit(created.body.id, { title: before.title, text: before.text }).expect(200);
+      expect((await read(created.body.id).expect(200)).body.content).toEqual(before.content);
+    });
+
+    it('updates chords and lyrics, and every Member sees the edit', async () => {
+      const created = await create({ title: uniqueTitle(), text: '[Verse]\nG\nAmazing grace' }).expect(201);
+      const other = (await joinAs(app, await signIn(app, ADMIN.email, ADMIN.password))).token;
+      const title = (await read(created.body.id).expect(200)).body.title;
+      await edit(created.body.id, { title, text: '[Verse]\nA     E\nAmazing grace, how sweet' }, other).expect(200);
+      const seen = (await read(created.body.id, member).expect(200)).body;
+      expect(seen.content.sections[0].lines[0]).toEqual({
+        lyric: 'Amazing grace, how sweet',
+        chords: [{ chord: 'A', at: 0 }, { chord: 'E', at: 6 }],
+      });
+    });
+
+    it('adds, removes and renames Sections by changing the headers', async () => {
+      const created = await create({ title: uniqueTitle(), text: '[Verse]\nOne\n\n[Chorus]\nTwo' }).expect(201);
+      const title = (await read(created.body.id).expect(200)).body.title;
+      const sectionNames = async () => (await read(created.body.id).expect(200)).body.content.order;
+      await edit(created.body.id, { title, text: '[Verse]\nOne\n\n[Chorus]\nTwo\n\n[Bridge]\nThree' }).expect(200);
+      expect(await sectionNames()).toEqual(['Verse', 'Chorus', 'Bridge']);
+      await edit(created.body.id, { title, text: '[Verse]\nOne\n\n[Refrain]\nTwo\n\n[Bridge]\nThree' }).expect(200);
+      expect(await sectionNames()).toEqual(['Verse', 'Refrain', 'Bridge']);
+      await edit(created.body.id, { title, text: '[Verse]\nOne\n\n[Bridge]\nThree' }).expect(200);
+      expect(await sectionNames()).toEqual(['Verse', 'Bridge']);
+    });
+
+    it('changes details, keeping the title-and-artist rule', async () => {
+      const first = await create({ title: uniqueTitle(), artist: 'A' }).expect(201);
+      const second = await create({ title: uniqueTitle(), artist: 'B' }).expect(201);
+      const firstSong = (await read(first.body.id).expect(200)).body;
+      // The Song may be renamed, change case only, or drop its own artist without clashing with itself.
+      await edit(first.body.id, { title: firstSong.title.toUpperCase(), artist: 'a', key: 'Em', tempo: 90, timeSignature: '6/8', text: '' }).expect(200);
+      expect((await read(first.body.id).expect(200)).body).toMatchObject({ artist: 'a', key: 'Em', tempo: 90, timeSignature: '6/8' });
+      // But not onto another Song.
+      const secondSong = (await read(second.body.id).expect(200)).body;
+      const clash = await edit(first.body.id, { title: secondSong.title, artist: 'b', text: '' }).expect(409);
+      expect(clash.body.existingId).toBe(second.body.id);
+    });
+
+    it('refuses an edit that would silently erase the chords and lyrics', async () => {
+      const created = await create({ title: uniqueTitle(), text: '[Verse]\nG\nHello' }).expect(201);
+      const title = (await read(created.body.id).expect(200)).body.title;
+      await edit(created.body.id, { title }).expect(400);
+      expect((await read(created.body.id).expect(200)).body.content.order).toEqual(['Verse']);
+      // Sending empty text on purpose does clear it.
+      await edit(created.body.id, { title, text: '' }).expect(200);
+      expect((await read(created.body.id).expect(200)).body.content.order).toEqual([]);
+    });
+  });
+
   it('needs a signed-in Member', async () => {
     await http().post('/songs').send({ title: uniqueTitle() }).expect(401);
   });

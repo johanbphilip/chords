@@ -1,8 +1,10 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { ChordSheet } from '@/components/chord-sheet';
+import { buttonVariants } from '@/components/ui/button';
 import { apiGet } from '@/lib/api';
 import type { Song } from '@/lib/songs';
 
@@ -16,10 +18,15 @@ export default function SongPage() {
   const details = [song.key && `Key ${song.key}`, song.tempo && `${song.tempo} bpm`, song.timeSignature].filter(Boolean);
   return (
     <article className="flex flex-col gap-4">
-      <header>
-        <h1 className="text-xl font-medium">{song.title}</h1>
-        {song.artist && <p className="text-muted-foreground">{song.artist}</p>}
-        {details.length > 0 && <p className="text-sm text-muted-foreground">{details.join(' · ')}</p>}
+      <header className="flex items-start gap-2">
+        <div>
+          <h1 className="text-xl font-medium">{song.title}</h1>
+          {song.artist && <p className="text-muted-foreground">{song.artist}</p>}
+          {details.length > 0 && <p className="text-sm text-muted-foreground">{details.join(' · ')}</p>}
+        </div>
+        <Link href={`/songs/${song.id}/edit`} className={buttonVariants({ variant: 'outline', size: 'sm' }) + ' ml-auto'}>
+          Edit
+        </Link>
       </header>
       <ChordSheet content={song.content} />
     </article>

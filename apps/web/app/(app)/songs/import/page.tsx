@@ -22,14 +22,7 @@ import {
   treatAsLyric,
   type Draft,
 } from '@/lib/review';
-import { songLabel, type ChordSheet, type SimilarSong } from '@/lib/songs';
-
-interface Parsed {
-  content: ChordSheet;
-  suggestedKey: string | null;
-  unnamedSection: boolean;
-  ambiguousLines: { section: string; line: number }[];
-}
+import { songLabel, type Parsed, type SimilarSong } from '@/lib/songs';
 
 interface Saved {
   id: string;

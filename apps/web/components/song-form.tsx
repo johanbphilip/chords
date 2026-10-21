@@ -23,6 +23,7 @@ export function SongForm({
   onSubmit,
   submitLabel,
   pending,
+  preview,
   children,
 }: {
   value: SongFormValues;
@@ -30,6 +31,8 @@ export function SongForm({
   onSubmit: () => void;
   submitLabel: string;
   pending: boolean;
+  /** Shown under the text box, so the Member sees the Song as they type. */
+  preview?: ReactNode;
   children?: ReactNode;
 }) {
   const set = (field: keyof SongFormValues) => (event: { target: { value: string } }) =>
@@ -72,6 +75,7 @@ export function SongForm({
           Put each chord line directly above its lyric line, and start a Section with a header like [Chorus].
         </span>
       </Field>
+      {preview}
       {children}
       <Button type="submit" disabled={pending}>
         {pending ? 'Saving…' : submitLabel}

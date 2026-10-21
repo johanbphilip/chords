@@ -1,4 +1,5 @@
 import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { renderChordSheet, type ChordSheet } from '../chord-sheet/index.js';
 import { Database } from '../database.js';
 import type { SongInput } from './song-input.js';
 
@@ -9,7 +10,7 @@ interface SongRow {
   musical_key: string | null;
   tempo: number | null;
   time_signature: string | null;
-  content: { sections: unknown[]; order: string[] };
+  content: ChordSheet;
 }
 
 const toSong = (row: SongRow) => ({
@@ -20,6 +21,8 @@ const toSong = (row: SongRow) => ({
   tempo: row.tempo,
   timeSignature: row.time_signature,
   content: row.content,
+  /** The chords-over-lyrics text to edit, in the Song's original order. */
+  text: renderChordSheet(row.content),
 });
 
 /** The same normalisation the `songs` table uses for its generated columns (see migration 004). */

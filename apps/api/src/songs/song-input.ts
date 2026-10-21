@@ -85,8 +85,15 @@ function readContent(value: unknown): ChordSheet {
   return { sections, order };
 }
 
-export function readSongInput(body: Record<string, unknown> | undefined): SongInput {
+/**
+ * `requireContent` is for edits: they replace the whole Song, so leaving out both `text` and `content` would
+ * silently erase its chords and lyrics. An empty `text` still clears them, on purpose.
+ */
+export function readSongInput(body: Record<string, unknown> | undefined, options: { requireContent?: boolean } = {}): SongInput {
   const input = body ?? {};
+  if (options.requireContent && input.text === undefined && (input.content === undefined || input.content === null)) {
+    throw new BadRequestException('Send the whole Song: its text (or content) as well as its details');
+  }
   const title = text(input.title, 'title')?.trim();
   if (!title) throw new BadRequestException('A Song needs a title');
 

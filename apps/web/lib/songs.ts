@@ -30,6 +30,16 @@ export interface Song extends SongSummary {
   tempo: number | null;
   timeSignature: string | null;
   content: ChordSheet;
+  /** The chords-over-lyrics text to edit, in the Song's original order. */
+  text: string;
+}
+
+/** What `POST /songs/parse` returns for pasted or typed text. Nothing is saved. */
+export interface Parsed {
+  content: ChordSheet;
+  suggestedKey: string | null;
+  unnamedSection: boolean;
+  ambiguousLines: { section: string; line: number }[];
 }
 
 /** Other Songs sharing a title, returned with a saved Song so the Member can be told. */
@@ -64,3 +74,13 @@ export function songBody(form: SongForm) {
 }
 
 export const songLabel = ({ title, artist }: { title: string; artist: string }) => (artist ? `${title} · ${artist}` : title);
+
+/** A Song's details as form values, for editing. */
+export const songToForm = (song: Song): SongForm => ({
+  title: song.title,
+  artist: song.artist,
+  key: song.key ?? '',
+  tempo: song.tempo === null ? '' : String(song.tempo),
+  timeSignature: song.timeSignature ?? '',
+  text: song.text,
+});
