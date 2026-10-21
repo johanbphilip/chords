@@ -31,14 +31,7 @@ The schema lives in numbered SQL files in `apps/api/migrations`, applied by `pnp
 
 The only setting that differs between databases is `DATABASE_URL`, so the same code runs on a local, test (e.g. Supabase) or self-hosted Postgres. See `docs/adr/0005-portable-postgres-with-versioned-migrations.md`.
 
-To move data between databases, use a `pg_dump` at least as new as the source server (the local dev database is Postgres 18):
-
-```
-pg_dump --format=custom --no-owner --no-acl "$SOURCE_DATABASE_URL" > chords.dump
-pg_restore --no-owner --no-acl --clean --if-exists --dbname "$TARGET_DATABASE_URL" chords.dump
-```
-
-This has not been rehearsed yet (ticket 23): there is no Postgres 18 `pg_dump` on the machine it was written on. On a managed provider, use the connection that supports sessions (a direct or session-mode connection), because migrations take an advisory lock; a transaction-mode pooler does not support it. On Supabase, `pnpm migrate` was verified with the direct connection (`db.<ref>.supabase.co:5432`). The direct host is IPv6-only on the free tier, so fall back to the session pooler (port 5432) from an IPv4-only network.
+Supabase is the test database and production will be a different, fresh one, so data is not carried between them: run `pnpm migrate` against the new database and the schema is built from the migrations. Moving real data (a `pg_dump` and `pg_restore` of the `public` schema) has not been rehearsed, so test it on a copy before relying on it. On a managed provider, use the connection that supports sessions (a direct or session-mode connection), because migrations take an advisory lock; a transaction-mode pooler does not support it. On Supabase, `pnpm migrate` was verified with the direct connection (`db.<ref>.supabase.co:5432`). The direct host is IPv6-only on the free tier, so fall back to the session pooler (port 5432) from an IPv4-only network.
 
 ## Design decisions
 
