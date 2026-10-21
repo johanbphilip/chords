@@ -13,6 +13,8 @@ Install once with `pnpm install`, then run each in its own terminal:
 | `pnpm api` | Starts the NestJS API on port 4000 (needs `DATABASE_URL`, printed by `pnpm db`) |
 | `pnpm web` | Starts the Next.js app on port 3000 (the browser reads `NEXT_PUBLIC_API_URL`, default `http://localhost:4000`) |
 
+`pnpm migrate` and `pnpm api` read `apps/api/.env` if it exists (copy `apps/api/.env.example`; the file is gitignored). Variables already set in the shell win over the file.
+
 Example: `DATABASE_URL=postgres://chords:chords@localhost:54329/chords ADMIN_EMAIL=you@example.com ADMIN_PASSWORD=Password123 BETTER_AUTH_SECRET=<32+ random characters> pnpm api`
 
 `ADMIN_EMAIL` and `ADMIN_PASSWORD` define the one Admin that exists from the start. The API refuses to start if the Admin does not exist yet and `ADMIN_PASSWORD` is missing. The password is used only when the account is first created; after that the Admin changes it on their profile page or with a reset link, and restarts never overwrite it. `ADMIN_NAME` (default "Admin") is the Admin's display name. `Password123` is a placeholder for local development only. `BETTER_AUTH_SECRET` signs sessions and is required in production. Set `BETTER_AUTH_URL` to the API's public address if it is not `http://localhost:4000`, and `WEB_ORIGIN` to the web app's address if it is not `http://localhost:3000`.
@@ -36,7 +38,7 @@ pg_dump --format=custom --no-owner --no-acl "$SOURCE_DATABASE_URL" > chords.dump
 pg_restore --no-owner --no-acl --clean --if-exists --dbname "$TARGET_DATABASE_URL" chords.dump
 ```
 
-This has not been rehearsed yet (ticket 23): there is no Postgres 18 `pg_dump` on the machine it was written on. On a managed provider, use the connection that supports sessions (a direct or session-mode connection), because migrations take an advisory lock; a transaction-mode pooler does not support it.
+This has not been rehearsed yet (ticket 23): there is no Postgres 18 `pg_dump` on the machine it was written on. On a managed provider, use the connection that supports sessions (a direct or session-mode connection), because migrations take an advisory lock; a transaction-mode pooler does not support it. On Supabase, `pnpm migrate` was verified with the direct connection (`db.<ref>.supabase.co:5432`). The direct host is IPv6-only on the free tier, so fall back to the session pooler (port 5432) from an IPv4-only network.
 
 ## Design decisions
 

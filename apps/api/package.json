@@ -3,8 +3,8 @@
   "private": true,
   "scripts": {
     "db": "tsx scripts/dev-db.ts",
-    "migrate": "tsx scripts/migrate.ts",
-    "dev": "tsx watch src/main.ts",
+    "migrate": "tsx --env-file-if-exists=.env scripts/migrate.ts",
+    "dev": "tsx watch --env-file-if-exists=.env src/main.ts",
     "typecheck": "tsc --noEmit",
     "test": "tsx scripts/test.ts"
   },

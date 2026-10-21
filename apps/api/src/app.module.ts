@@ -10,11 +10,11 @@ import { AuthGuard } from './auth/auth.guard.js';
 import { BetterAuthMiddleware } from './auth/better-auth.middleware.js';
 import { AuthService } from './auth/auth.service.js';
 import { InvitesService } from './auth/invites.service.js';
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { Database } from './database.js';
 import { EmailService } from './email.service.js';
 import { HelloController } from './hello.controller.js';
-import { throttlerOptions } from './rate-limit.js';
+import { AppThrottlerGuard, throttlerOptions } from './rate-limit.js';
 
 @Module({
   imports: [ThrottlerModule.forRootAsync({ useFactory: throttlerOptions })],
@@ -27,7 +27,7 @@ import { throttlerOptions } from './rate-limit.js';
     AccessRequestsService,
     MembersService,
     // Throttle first, so a flood of unauthenticated requests is turned away before any session lookup.
-    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_GUARD, useClass: AppThrottlerGuard },
     { provide: APP_GUARD, useClass: AuthGuard },
   ],
 })
