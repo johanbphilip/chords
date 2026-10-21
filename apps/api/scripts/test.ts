@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { migrate } from '../src/migrate.js';
+import { migrate } from '../src/infrastructure/database/migrate.js';
 import { freePort, startDb } from './embedded-db.js';
 
 // Runs vitest against a throwaway real Postgres so every API test hits a real database.

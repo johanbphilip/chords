@@ -1,4 +1,4 @@
-import { migrate } from '../src/migrate.js';
+import { migrate } from '../src/infrastructure/database/migrate.js';
 
 const url = process.env.DATABASE_URL;
 if (!url) {

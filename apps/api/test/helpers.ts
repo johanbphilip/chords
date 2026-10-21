@@ -3,7 +3,7 @@ import { Test } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
-import { EmailService, type EmailMessage } from '../src/email.service.js';
+import { EmailService, type EmailMessage } from '../src/infrastructure/email/email.service.js';
 
 export const ADMIN = { email: 'admin@example.com', password: 'Password123' };
 
