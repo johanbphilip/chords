@@ -8,6 +8,6 @@
     "api": "pnpm --filter api dev",
     "web": "pnpm --filter web dev",
     "typecheck": "pnpm -r typecheck",
-    "test": "pnpm --filter api test"
+    "test": "pnpm -r --if-present test"
   }
 }

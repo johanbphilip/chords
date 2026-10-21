@@ -1,8 +1,7 @@
-import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { normaliseEmail, type Role } from '@chords/shared';
+import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Database } from '../../infrastructure/database/database.js';
-import { normaliseEmail } from '../people.js';
 import { AuthService } from '../session/auth.service.js';
-import type { Role } from '../session/better-auth.js';
 
 const ADMIN_COUNT_LOCK = 7003;
 
@@ -44,8 +43,7 @@ export class MembersService {
     await context.internalAdapter.updateUser(person.id, { banned: false, banReason: null, banExpires: null });
   }
 
-  async setRole(email: string, role: unknown) {
-    if (role !== 'admin' && role !== 'member') throw new BadRequestException('Role must be admin or member');
+  async setRole(email: string, role: Role) {
     // The lock makes "count the other Admins, then change this one" atomic, so two Admins cannot demote each other at once.
     await this.db.withLock(ADMIN_COUNT_LOCK, async () => {
       const person = await this.find(email);

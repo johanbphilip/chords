@@ -1,6 +1,8 @@
+import { requestAccessSchema } from '@chords/shared';
 import { Body, Controller, Delete, Get, Inject, Param, Post } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { rateLimits } from '../../infrastructure/rate-limit/rate-limit.js';
+import { ZodPipe } from '../../infrastructure/validation/zod.pipe.js';
 import { Public, RequirePermission } from '../session/auth.guard.js';
 import { AccessRequestsService } from './access-requests.service.js';
 
@@ -12,7 +14,7 @@ export class RequestAccessController {
   @Public()
   @Throttle({ default: { limit: () => rateLimits().registerMax, ttl: () => rateLimits().windowMs } })
   @Post('request-access')
-  requestAccess(@Body() body: { email?: unknown; name?: unknown }) {
+  requestAccess(@Body(new ZodPipe(requestAccessSchema)) body: { email: string; name: string }) {
     return this.requests.request(body.email, body.name);
   }
 }

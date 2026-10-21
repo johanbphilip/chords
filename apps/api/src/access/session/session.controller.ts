@@ -1,4 +1,6 @@
+import { renameSchema } from '@chords/shared';
 import { Body, Controller, Get, Inject, Patch, Req } from '@nestjs/common';
+import { ZodPipe } from '../../infrastructure/validation/zod.pipe.js';
 import { AuthService } from './auth.service.js';
 import type { AuthedRequest } from './auth.guard.js';
 
@@ -13,7 +15,7 @@ export class SessionController {
   }
 
   @Patch('me')
-  async rename(@Req() request: AuthedRequest, @Body() body: { name?: unknown }) {
+  async rename(@Req() request: AuthedRequest, @Body(new ZodPipe(renameSchema)) body: { name: string }) {
     await this.auth.renameMember(request.headers, body.name);
     return {};
   }

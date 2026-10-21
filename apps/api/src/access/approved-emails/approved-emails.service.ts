@@ -1,7 +1,6 @@
+import { normaliseEmail, type Role } from '@chords/shared';
 import { ConflictException, Inject, Injectable } from '@nestjs/common';
 import { Database } from '../../infrastructure/database/database.js';
-import { normaliseEmail, validEmail } from '../people.js';
-import type { Role } from '../session/better-auth.js';
 
 /** The allowlist: only an approved email can join, and removing one ends that person's access at once. */
 @Injectable()
@@ -33,12 +32,6 @@ export class ApprovedEmailsService {
   /** Adds an already-normalised address. Approving one that is already approved changes nothing. */
   async add(address: string) {
     await this.db.query('INSERT INTO approved_emails (email) VALUES ($1) ON CONFLICT DO NOTHING', [address]);
-  }
-
-  async approve(email: unknown) {
-    const address = validEmail(email);
-    await this.add(address);
-    return { email: address };
   }
 
   /** Removes an approved email that never joined. Someone who has joined is revoked instead, to keep their name. */

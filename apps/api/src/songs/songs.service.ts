@@ -1,7 +1,6 @@
 import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { renderChordSheet, type ChordSheet } from '@chords/shared';
+import { renderChordSheet, type ChordSheet, type SongInput } from '@chords/shared';
 import { Database } from '../infrastructure/database/database.js';
-import type { SongInput } from './song-input.js';
 
 interface SongRow {
   id: string;

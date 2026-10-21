@@ -38,7 +38,6 @@ describe('importing a pasted Song', () => {
 
     it.each([
       ['an unnamed Section', { sections: [{ ...verse, name: '' }], order: [''] }],
-      ['a Section name with stray spaces', { sections: [{ ...verse, name: ' Verse' }], order: [' Verse'] }],
       ['two Sections with one name', { sections: [verse, verse], order: ['Verse'] }],
       ['an order naming a Section that does not exist', { sections: [verse], order: ['Verse', 'Bridge'] }],
       ['a Section that is not in the order', { sections: [verse, chorus], order: ['Verse'] }],
@@ -50,6 +49,13 @@ describe('importing a pasted Song', () => {
       ['content that is not an object', 'Verse'],
     ])('refuses %s', async (_name, content) => {
       await create({ title: uniqueTitle(), content }).expect(400);
+    });
+
+    it('tidies stray spaces around Section names instead of refusing them', async () => {
+      const created = await create({ title: uniqueTitle(), content: { sections: [{ ...verse, name: ' Verse ' }], order: [' Verse '] } }).expect(201);
+      const saved = (await http().get(`/songs/${created.body.id}`).set(bearer(member)).expect(200)).body;
+      expect(saved.content.order).toEqual(['Verse']);
+      expect(saved.content.sections[0].name).toBe('Verse');
     });
 
     it('refuses text and content together, since one would silently win', async () => {

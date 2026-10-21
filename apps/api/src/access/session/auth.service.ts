@@ -1,3 +1,4 @@
+import { normaliseEmail, type Role } from '@chords/shared';
 import { Inject, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { fromNodeHeaders } from 'better-auth/node';
 import type { IncomingHttpHeaders } from 'node:http';
@@ -5,8 +6,7 @@ import { randomBytes } from 'node:crypto';
 import { Database } from '../../infrastructure/database/database.js';
 import { EmailService } from '../../infrastructure/email/email.service.js';
 import { ApprovedEmailsService } from '../approved-emails/approved-emails.service.js';
-import { normaliseEmail, validName } from '../people.js';
-import { createAuth, RESET_TOKEN_SECONDS, webLink, type Auth, type Permission, type Role } from './better-auth.js';
+import { createAuth, RESET_TOKEN_SECONDS, webLink, type Auth, type Permission } from './better-auth.js';
 
 export interface Member {
   email: string;
@@ -81,8 +81,8 @@ export class AuthService implements OnModuleInit {
     return { email: address, resetUrl: webLink(`/reset-password/${token}`) };
   }
 
-  async renameMember(headers: IncomingHttpHeaders, name: unknown) {
-    await this.auth.api.updateUser({ headers: fromNodeHeaders(headers), body: { name: validName(name) } });
+  async renameMember(headers: IncomingHttpHeaders, name: string) {
+    await this.auth.api.updateUser({ headers: fromNodeHeaders(headers), body: { name } });
   }
 
   async can(role: Role, permissions: Permission): Promise<boolean> {

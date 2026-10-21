@@ -1,4 +1,6 @@
+import { approveEmailSchema } from '@chords/shared';
 import { Body, Controller, Delete, Get, Inject, Param, Post } from '@nestjs/common';
+import { ZodPipe } from '../../infrastructure/validation/zod.pipe.js';
 import { InvitesService } from '../invites/invites.service.js';
 import { RequirePermission } from '../session/auth.guard.js';
 import { AuthService } from '../session/auth.service.js';
@@ -19,7 +21,7 @@ export class ApprovedEmailsController {
   }
 
   @Post()
-  approve(@Body() body: { email?: unknown }) {
+  approve(@Body(new ZodPipe(approveEmailSchema)) body: { email: string }) {
     return this.invites.approveAndInvite(body.email);
   }
 

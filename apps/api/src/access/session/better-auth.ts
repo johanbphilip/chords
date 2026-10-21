@@ -1,11 +1,10 @@
+import { PASSWORD_MIN_LENGTH, type Role } from '@chords/shared';
 import { betterAuth } from 'better-auth';
 import { createAccessControl } from 'better-auth/plugins/access';
 import { adminAc, defaultStatements, userAc } from 'better-auth/plugins/admin/access';
 import { admin, bearer } from 'better-auth/plugins';
 import type { Pool } from 'pg';
 import { rateLimits } from '../../infrastructure/rate-limit/rate-limit.js';
-
-export type Role = 'admin' | 'member';
 
 /** What a role may do. Add a resource here (e.g. deleting Songs) and grant it to `admin` below. */
 const statements = { ...defaultStatements, approvedEmail: ['manage'] } as const;
@@ -29,7 +28,7 @@ export function createAuth(pool: Pool, hooks: AuthHooks) {
     emailAndPassword: {
       enabled: true,
       disableSignUp: true,
-      minPasswordLength: 8,
+      minPasswordLength: PASSWORD_MIN_LENGTH,
       resetPasswordTokenExpiresIn: RESET_TOKEN_SECONDS,
       // A reset or change of password ends the sessions that were open before it.
       revokeSessionsOnPasswordReset: true,

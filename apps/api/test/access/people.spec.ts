@@ -100,15 +100,18 @@ describe('revocation and roles', () => {
       await http().get('/admin/approved-emails').set(bearer(member.token)).expect(403);
     });
 
-    it('lets an Admin step down while another Admin remains', async () => {
-      const other = await joinAs(app, admin);
-      await setRole(admin, other.email, 'admin').expect(200);
+    it('lets an Admin demote another Admin while one remains', async () => {
+      // Two Admins made here, so the suite's shared seeded Admin is never touched: other spec files run at the same time.
+      const first = await joinAs(app, admin);
+      const second = await joinAs(app, admin);
+      await setRole(admin, first.email, 'admin').expect(200);
+      await setRole(admin, second.email, 'admin').expect(200);
       try {
-        // The other Admin demotes the seeded one and restores them, so the suite's Admin is untouched at the end.
-        await setRole(other.token, ADMIN.email, 'member').expect(200);
-        await setRole(other.token, ADMIN.email, 'admin').expect(200);
+        await setRole(first.token, second.email, 'member').expect(200);
+        await http().get('/admin/approved-emails').set(bearer(second.token)).expect(403);
       } finally {
-        await setRole(admin, other.email, 'member');
+        await setRole(admin, first.email, 'member');
+        await setRole(admin, second.email, 'member');
       }
     });
 

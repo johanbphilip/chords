@@ -1,4 +1,6 @@
+import { setRoleSchema, type Role } from '@chords/shared';
 import { Body, Controller, Get, HttpCode, Inject, Param, Post, Put } from '@nestjs/common';
+import { ZodPipe } from '../../infrastructure/validation/zod.pipe.js';
 import { RequirePermission } from '../session/auth.guard.js';
 import { MembersService } from './members.service.js';
 
@@ -21,7 +23,7 @@ export class AdminMembersController {
 
   @Put(':email/role')
   @HttpCode(200)
-  async setRole(@Param('email') email: string, @Body() body: { role?: unknown }) {
+  async setRole(@Param('email') email: string, @Body(new ZodPipe(setRoleSchema)) body: { role: Role }) {
     await this.members.setRole(email, body.role);
     return {};
   }

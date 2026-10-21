@@ -1,8 +1,8 @@
+import { normaliseEmail } from '@chords/shared';
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Database } from '../../infrastructure/database/database.js';
 import { ApprovedEmailsService } from '../approved-emails/approved-emails.service.js';
 import { InvitesService } from '../invites/invites.service.js';
-import { normaliseEmail, validEmail, validName } from '../people.js';
 
 const DEFAULT_CAP = 200;
 const cap = () => Number(process.env.ACCESS_REQUEST_CAP ?? DEFAULT_CAP);
@@ -19,9 +19,7 @@ export class AccessRequestsService {
    * Always answers the same, so the form cannot be used to find out who is approved or already a Member.
    * Requests from people who already have access, and any beyond the cap, are quietly ignored.
    */
-  async request(email: unknown, name: unknown): Promise<{ received: true }> {
-    const address = validEmail(email);
-    const displayName = validName(name);
+  async request(address: string, displayName: string): Promise<{ received: true }> {
     const known = (await this.approved.isApproved(address)) || (await this.approved.isRegistered(address));
     if (!known) {
       await this.db.query(

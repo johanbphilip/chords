@@ -1,9 +1,9 @@
+import { INVALID_INVITE_MESSAGE, normaliseEmail } from '@chords/shared';
 import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { createHash, randomBytes } from 'node:crypto';
 import { Database } from '../../infrastructure/database/database.js';
 import { EmailService } from '../../infrastructure/email/email.service.js';
 import { ApprovedEmailsService } from '../approved-emails/approved-emails.service.js';
-import { MIN_PASSWORD, normaliseEmail, validName } from '../people.js';
 import { AuthService, type Member } from '../session/auth.service.js';
 import { webLink } from '../session/better-auth.js';
 
@@ -22,9 +22,9 @@ export class InvitesService {
     @Inject(EmailService) private readonly email: EmailService,
   ) {}
 
-  /** Approves an email and, unless they have already joined, gives the Admin a link to send them. */
-  async approveAndInvite(email: unknown): Promise<{ email: string; inviteUrl: string | null }> {
-    const { email: address } = await this.approved.approve(email);
+  /** Approves an email (already normalised) and, unless they have already joined, gives the Admin a link to send them. */
+  async approveAndInvite(address: string): Promise<{ email: string; inviteUrl: string | null }> {
+    await this.approved.add(address);
     if (await this.approved.isRegistered(address)) return { email: address, inviteUrl: null };
     return { email: address, inviteUrl: await this.issueAndEmail(address) };
   }
@@ -42,14 +42,9 @@ export class InvitesService {
   }
 
   /** Spends the link: the person chooses their display name and password and becomes a Member. */
-  async accept(token: unknown, name: unknown, password: unknown): Promise<{ member: Member }> {
-    const displayName = validName(name);
-    if (typeof password !== 'string' || password.length < MIN_PASSWORD) {
-      throw new BadRequestException(`Password must be at least ${MIN_PASSWORD} characters`);
-    }
+  async accept(token: string, name: string, password: string): Promise<{ member: Member }> {
     // One answer for used, expired and made-up links.
-    const refused = new BadRequestException('This invite link is invalid or has expired');
-    if (typeof token !== 'string') throw refused;
+    const refused = new BadRequestException(INVALID_INVITE_MESSAGE);
     const [claimed] = await this.db.query<{ email: string }>(
       `UPDATE invites SET used_at = now()
        WHERE token_hash = $1 AND used_at IS NULL AND expires_at > now() RETURNING email`,
@@ -57,7 +52,7 @@ export class InvitesService {
     );
     if (!claimed) throw refused;
     try {
-      return { member: await this.createMember(claimed.email, displayName, password) };
+      return { member: await this.createMember(claimed.email, name, password) };
     } catch (error) {
       // Give the link back so the person can retry, but keep the cause: it may be an outage, not a bad link.
       console.error('Could not create the account for an invite', error);

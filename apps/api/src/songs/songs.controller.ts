@@ -1,6 +1,6 @@
+import { findAmbiguousLines, parseChordSheet, suggestKey, createSongSchema, parseSongTextSchema, replaceSongSchema, type SongInput } from '@chords/shared';
 import { Body, Controller, Get, HttpCode, Inject, Param, Post, Put } from '@nestjs/common';
-import { findAmbiguousLines, parseChordSheet, suggestKey } from '@chords/shared';
-import { readPastedText, readSongInput } from './song-input.js';
+import { ZodPipe } from '../infrastructure/validation/zod.pipe.js';
 import { SongsService } from './songs.service.js';
 
 @Controller('songs')
@@ -8,15 +8,15 @@ export class SongsController {
   constructor(@Inject(SongsService) private readonly songs: SongsService) {}
 
   @Post()
-  create(@Body() body: Record<string, unknown>) {
-    return this.songs.create(readSongInput(body));
+  create(@Body(new ZodPipe(createSongSchema)) body: SongInput) {
+    return this.songs.create(body);
   }
 
   /** Turns pasted text into a draft for review. Nothing is saved until the Member saves the reviewed Song. */
   @Post('parse')
   @HttpCode(200)
-  parse(@Body() body: Record<string, unknown>) {
-    const content = parseChordSheet(readPastedText(body));
+  parse(@Body(new ZodPipe(parseSongTextSchema)) { text }: { text: string }) {
+    const content = parseChordSheet(text);
     return {
       content,
       suggestedKey: suggestKey(content),
@@ -36,7 +36,7 @@ export class SongsController {
   }
 
   @Put(':id')
-  update(@Param('id') id: string, @Body() body: Record<string, unknown>) {
-    return this.songs.update(id, readSongInput(body, { requireContent: true }));
+  update(@Param('id') id: string, @Body(new ZodPipe(replaceSongSchema)) body: SongInput) {
+    return this.songs.update(id, body);
   }
 }
