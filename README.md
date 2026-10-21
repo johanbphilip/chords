@@ -2,6 +2,12 @@
 
 A focused app for our church's musicians. See `CONTEXT.md` for the vocabulary and `.scratch/chords-mvp/spec.md` for the plan.
 
+## Layout
+
+- `apps/api`: the NestJS API. `src/infrastructure/` (database, email, rate limiting, request validation), `src/access/` (session, approved emails, invites, access requests, members), `src/songs/`. Each area is a Nest module, and `test/` mirrors the folders.
+- `apps/web`: the Next.js app. `app/` is the routes, `components/ui/` is shadcn, `components/form/` is TanStack Form with the shadcn fields, `components/songs/` and `lib/songs/` are the Song screens and their logic.
+- `packages/shared`: `@chords/shared`, the chord sheet logic and the Zod schemas both apps use. See `docs/adr/0006-shared-package-and-zod-schemas.md`.
+
 ## Running locally
 
 Install once with `pnpm install`, then run each in its own terminal:
@@ -27,7 +33,7 @@ Requests are rate limited per client IP. See `docs/adr/0003-in-memory-rate-limit
 
 ## Database
 
-The schema lives in numbered SQL files in `apps/api/migrations`, applied by `pnpm migrate` and tracked in the `pgmigrations` table. The API does not create tables; it refuses to start on a database that has not been migrated. Add a change as a new file (`002_name.sql`) with `-- Up Migration` and `-- Down Migration` sections, never by editing an applied one.
+The schema lives in numbered SQL files in `apps/api/migrations`, applied by `pnpm migrate` and tracked in the `pgmigrations` table. The API does not create tables; it refuses to start on a database that has not been migrated. Add a change as a new file (the next number, such as `005_name.sql`) with `-- Up Migration` and `-- Down Migration` sections, never by editing an applied one.
 
 The only setting that differs between databases is `DATABASE_URL`, so the same code runs on a local, test (e.g. Supabase) or self-hosted Postgres. See `docs/adr/0005-portable-postgres-with-versioned-migrations.md`.
 
@@ -35,9 +41,9 @@ Supabase is the test database and production will be a different, fresh one, so 
 
 ## Design decisions
 
-Architecture and access decisions are in `docs/adr/`: the stack (0001), Better Auth and bearer tokens (0002), rate limiting (0003), invite links and Admin-managed access (0004), and the portable Postgres rules (0005). Tickets 23 to 28 in `.scratch/chords-mvp/issues/` build the access design.
+Architecture and access decisions are in `docs/adr/`: the stack (0001), Better Auth and bearer tokens (0002), rate limiting (0003), invite links and Admin-managed access (0004), the portable Postgres rules (0005), and the shared package and Zod schemas (0006). Tickets 23 to 28 in `.scratch/chords-mvp/issues/` build the access design.
 
 ## Checks
 
-- `pnpm typecheck` checks both apps.
-- `pnpm test` runs the API tests against a throwaway real Postgres.
+- `pnpm typecheck` checks both apps and the shared package.
+- `pnpm test` runs every package's tests: the API against a throwaway real Postgres, the shared package's chord sheet and schema tests, and the web app's form and review tests (Vitest with jsdom).
