@@ -61,13 +61,23 @@ export interface SongForm {
 
 export const emptySongForm: SongForm = { title: '', artist: '', key: '', tempo: '', timeSignature: '', text: '' };
 
-/** The API's request body for a form: blank details become none and tempo becomes a number. */
+/** A Song as the API returns it right after a save, with any other Songs sharing its title. */
+export interface Saved {
+  id: string;
+  similar: SimilarSong[];
+}
+
+/**
+ * The API's request body for a form: blank details become none and tempo becomes a number. A tempo that is not
+ * a whole number is sent as typed, so the API refuses it instead of it quietly turning into none.
+ */
 export function songBody(form: SongForm) {
+  const tempo = form.tempo.trim();
   return {
     title: form.title,
     artist: form.artist,
     key: form.key,
-    tempo: form.tempo.trim() === '' ? null : Number(form.tempo),
+    tempo: tempo === '' ? null : /^\d+$/.test(tempo) ? Number(tempo) : tempo,
     timeSignature: form.timeSignature,
     text: form.text,
   };

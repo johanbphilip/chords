@@ -6,9 +6,10 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { ChordLine } from '@/components/chord-sheet';
 import { Button, buttonVariants } from '@/components/ui/button';
+import { SavedNotice } from '@/components/saved-notice';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { ApiError, apiPost, apiPut } from '@/lib/api';
+import { apiPost, apiPut, existingSongId } from '@/lib/api';
 import {
   addOrderEntry,
   mergeSection,
@@ -22,12 +23,7 @@ import {
   treatAsLyric,
   type Draft,
 } from '@/lib/review';
-import { songLabel, type Parsed, type SimilarSong } from '@/lib/songs';
-
-interface Saved {
-  id: string;
-  similar: SimilarSong[];
-}
+import type { Parsed, Saved } from '@/lib/songs';
 
 export default function ImportPage() {
   const [text, setText] = useState('');
@@ -90,25 +86,10 @@ function Review({ parsed, onBack }: { parsed: Parsed; onBack: () => void }) {
     else setSaved(song);
   };
   const save = useMutation({ mutationFn: () => apiPost<Saved>('/songs', body()), onSuccess: done });
-  const existingId =
-    save.error instanceof ApiError && save.error.status === 409 && typeof save.error.payload?.existingId === 'string'
-      ? save.error.payload.existingId
-      : null;
+  const existingId = existingSongId(save.error);
   const writeOver = useMutation({ mutationFn: () => apiPut<Saved>(`/songs/${existingId}`, body()), onSuccess: done });
 
-  if (saved) {
-    return (
-      <div className="flex flex-col gap-4">
-        <h1 className="text-xl font-medium">Saved</h1>
-        <p role="status">
-          Saved. Other Songs have this title, so check this is not a copy of one of them: {saved.similar.map(songLabel).join('; ')}.
-        </p>
-        <Link href={`/songs/${saved.id}`} className={buttonVariants()}>
-          Open the Song
-        </Link>
-      </div>
-    );
-  }
+  if (saved) return <SavedNotice id={saved.id} similar={saved.similar} />;
 
   const issues = problems(draft);
   const nameOf = (sectionKey: number) => draft.sections.find((s) => s.key === sectionKey)?.name.trim() || 'Unnamed';

@@ -39,3 +39,10 @@ export const apiPost = <T>(path: string, body?: unknown) => request<T>('POST', p
 export const apiPut = <T>(path: string, body: unknown) => request<T>('PUT', path, body);
 export const apiPatch = <T>(path: string, body: unknown) => request<T>('PATCH', path, body);
 export const apiDelete = <T>(path: string) => request<T>('DELETE', path);
+
+/** The id of the Song a 409 points at (a Song with the same title and artist already exists), if the error is one. */
+export function existingSongId(error: unknown): string | null {
+  if (!(error instanceof ApiError) || error.status !== 409) return null;
+  const id = error.payload?.existingId;
+  return typeof id === 'string' ? id : null;
+}

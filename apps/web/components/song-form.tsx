@@ -16,7 +16,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-/** Details plus the chords-over-lyrics text. Shared by creating a Song and, later, editing one. */
+/** Details plus the chords-over-lyrics text. Shared by creating a Song and editing one. */
 export function SongForm({
   value,
   onChange,

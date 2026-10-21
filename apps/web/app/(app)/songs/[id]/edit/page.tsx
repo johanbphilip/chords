@@ -4,10 +4,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { SavedNotice } from '@/components/saved-notice';
 import { SheetPreview } from '@/components/sheet-preview';
 import { SongForm } from '@/components/song-form';
-import { ApiError, apiGet, apiPut } from '@/lib/api';
-import { songBody, songToForm, type Song, type SongForm as SongFormValues } from '@/lib/songs';
+import { apiGet, apiPut, existingSongId } from '@/lib/api';
+import { songBody, songToForm, type Saved, type Song, type SongForm as SongFormValues } from '@/lib/songs';
 
 export default function EditSongPage() {
   const { id } = useParams<{ id: string }>();
@@ -22,15 +23,19 @@ function Editor({ song }: { song: Song }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [form, setForm] = useState<SongFormValues>(() => songToForm(song));
+  const [saved, setSaved] = useState<Saved | null>(null);
 
   const save = useMutation({
-    mutationFn: () => apiPut<Song>(`/songs/${song.id}`, songBody(form)),
-    onSuccess: async () => {
+    mutationFn: () => apiPut<Saved>(`/songs/${song.id}`, songBody(form)),
+    onSuccess: async (updated) => {
       await Promise.all([queryClient.invalidateQueries({ queryKey: ['songs'] }), queryClient.invalidateQueries({ queryKey: ['song', song.id] })]);
-      router.push(`/songs/${song.id}`);
+      // Changing the title or artist can leave a same-title Song by someone else, so say so before moving on.
+      if (updated.similar.length === 0) router.push(`/songs/${song.id}`);
+      else setSaved(updated);
     },
   });
-  const existingId = save.error instanceof ApiError && save.error.status === 409 ? save.error.payload?.existingId : null;
+  if (saved) return <SavedNotice id={saved.id} similar={saved.similar} />;
+  const existingId = existingSongId(save.error);
 
   return (
     <div className="flex flex-col gap-4">
@@ -50,7 +55,7 @@ function Editor({ song }: { song: Song }) {
         {save.error && (
           <p role="alert" className="text-sm text-destructive">
             {save.error.message}
-            {typeof existingId === 'string' && (
+            {existingId && (
               <>
                 {' '}
                 <Link href={`/songs/${existingId}`} className="underline">
