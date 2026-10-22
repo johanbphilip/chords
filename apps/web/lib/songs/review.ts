@@ -20,7 +20,10 @@ export interface Draft {
   order: number[];
 }
 
-export function startReview(content: ChordSheet, ambiguous: { section: string; line: number }[]): Draft {
+export function startReview(
+  content: ChordSheet,
+  ambiguous: { section: string; line: number }[],
+): Draft {
   const keyOf = new Map(content.sections.map((section, key) => [section.name, key]));
   return {
     sections: content.sections.map((section, key) => ({
@@ -28,7 +31,9 @@ export function startReview(content: ChordSheet, ambiguous: { section: string; l
       name: section.name,
       lines: section.lines.map((line, index) => ({
         ...line,
-        ambiguous: ambiguous.some((flag) => flag.section === section.name && flag.line === index) || undefined,
+        ambiguous:
+          ambiguous.some((flag) => flag.section === section.name && flag.line === index) ||
+          undefined,
       })),
     })),
     order: content.order.map((name) => keyOf.get(name)!),
@@ -38,7 +43,8 @@ export function startReview(content: ChordSheet, ambiguous: { section: string; l
 /** The stored form the API validates: names instead of keys, and no review flags. */
 export function toContent(draft: Draft): ChordSheet {
   // While an edit is half applied, the order can name a Section that is gone; that is reported, not thrown.
-  const name = (key: number) => draft.sections.find((section) => section.key === key)?.name.trim() ?? '';
+  const name = (key: number) =>
+    draft.sections.find((section) => section.key === key)?.name.trim() ?? '';
   return {
     sections: draft.sections.map((section) => ({
       name: section.name.trim(),
@@ -51,11 +57,16 @@ export function toContent(draft: Draft): ChordSheet {
 /** Lines from `at` onward become a new unnamed Section straight after, wherever the Song repeats the original. */
 export function splitSection(draft: Draft, key: number, at: number): Draft {
   const index = draft.sections.findIndex((section) => section.key === key);
-  const section = draft.sections[index]!;
+  const section = draft.sections[index];
   if (at <= 0 || at >= section.lines.length) return draft;
   const newKey = Math.max(...draft.sections.map((s) => s.key)) + 1;
   const sections = [...draft.sections];
-  sections.splice(index, 1, { ...section, lines: section.lines.slice(0, at) }, { key: newKey, name: '', lines: section.lines.slice(at) });
+  sections.splice(
+    index,
+    1,
+    { ...section, lines: section.lines.slice(0, at) },
+    { key: newKey, name: '', lines: section.lines.slice(at) },
+  );
   return { sections, order: draft.order.flatMap((k) => (k === key ? [key, newKey] : [k])) };
 }
 
@@ -66,17 +77,21 @@ export function mergeSection(draft: Draft, key: number, into: 'previous' | 'next
   const index = draft.sections.findIndex((section) => section.key === key);
   const target = draft.sections[into === 'previous' ? index - 1 : index + 1];
   if (!target) return draft;
-  const section = draft.sections[index]!;
-  const lines = into === 'previous' ? [...target.lines, ...section.lines] : [...section.lines, ...target.lines];
+  const section = draft.sections[index];
+  const lines =
+    into === 'previous' ? [...target.lines, ...section.lines] : [...section.lines, ...target.lines];
   return {
-    sections: draft.sections.filter((s) => s.key !== key).map((s) => (s.key === target.key ? { ...s, lines } : s)),
+    sections: draft.sections
+      .filter((s) => s.key !== key)
+      .map((s) => (s.key === target.key ? { ...s, lines } : s)),
     order: collapseRepeats(draft.order.map((k) => (k === key ? target.key : k))),
   };
 }
 
 function chordRow(chords: PlacedChord[]): string {
   let row = '';
-  for (const { chord, at } of [...chords].sort((a, b) => a.at - b.at)) row = row.padEnd(Math.max(at, row === '' ? 0 : row.length + 1)) + chord;
+  for (const { chord, at } of [...chords].toSorted((a, b) => a.at - b.at))
+    row = row.padEnd(Math.max(at, row === '' ? 0 : row.length + 1)) + chord;
   return row;
 }
 
@@ -86,10 +101,13 @@ export function treatAsLyric(draft: Draft, key: number, lineIndex: number): Draf
     ...draft,
     sections: draft.sections.map((section) => {
       if (section.key !== key) return section;
-      const line = section.lines[lineIndex]!;
+      const line = section.lines[lineIndex];
       const words: ReviewLine[] = [{ lyric: chordRow(line.chords), chords: [] }];
       if (line.lyric !== '') words.push({ lyric: line.lyric, chords: [] });
-      return { ...section, lines: section.lines.flatMap((l, i) => (i === lineIndex ? words : [l])) };
+      return {
+        ...section,
+        lines: section.lines.flatMap((l, i) => (i === lineIndex ? words : [l])),
+      };
     }),
   };
 }
@@ -98,4 +116,7 @@ export const removeOrderEntry = (draft: Draft, index: number): Draft => ({
   ...draft,
   order: draft.order.filter((_, i) => i !== index),
 });
-export const addOrderEntry = (draft: Draft, key: number): Draft => ({ ...draft, order: [...draft.order, key] });
+export const addOrderEntry = (draft: Draft, key: number): Draft => ({
+  ...draft,
+  order: [...draft.order, key],
+});

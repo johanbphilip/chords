@@ -36,4 +36,5 @@ export interface Saved {
   similar: SimilarSong[];
 }
 
-export const songLabel = ({ title, artist }: { title: string; artist: string }) => (artist ? `${title} · ${artist}` : title);
+export const songLabel = ({ title, artist }: { title: string; artist: string }) =>
+  artist ? `${title} · ${artist}` : title;

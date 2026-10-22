@@ -12,7 +12,9 @@ export class RequestAccessController {
   constructor(@Inject(AccessRequestsService) private readonly requests: AccessRequestsService) {}
 
   @Public()
-  @Throttle({ default: { limit: () => rateLimits().registerMax, ttl: () => rateLimits().windowMs } })
+  @Throttle({
+    default: { limit: () => rateLimits().registerMax, ttl: () => rateLimits().windowMs },
+  })
   @Post('request-access')
   requestAccess(@Body(new ZodPipe(requestAccessSchema)) body: { email: string; name: string }) {
     return this.requests.request(body.email, body.name);

@@ -15,7 +15,9 @@ export function SheetPreview({ text }: { text: string }) {
       </CardHeader>
       <CardContent>
         {text.trim() === '' ? (
-          <p className="text-sm text-muted-foreground">Type or paste chords and lyrics to see them here.</p>
+          <p className="text-sm text-muted-foreground">
+            Type or paste chords and lyrics to see them here.
+          </p>
         ) : (
           <ChordSheet content={content} />
         )}

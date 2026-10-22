@@ -19,7 +19,9 @@ export class Database implements OnModuleInit, OnModuleDestroy {
   async onModuleInit() {
     const pending = await pendingMigrations(this.pool);
     if (pending.length > 0) {
-      throw new Error(`The database is missing migrations: ${pending.join(', ')} (run \`pnpm migrate\`)`);
+      throw new Error(
+        `The database is missing migrations: ${pending.join(', ')} (run \`pnpm migrate\`)`,
+      );
     }
   }
 

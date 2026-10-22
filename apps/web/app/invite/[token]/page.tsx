@@ -27,7 +27,10 @@ export default function InvitePage() {
       const { member } = await apiPost<Accepted>('/auth/accept-invite', { token, name, password });
       const { error } = await authClient.signIn.email({ email: member.email, password });
       // The invite is spent by now, so a failed sign-in here must send them to the normal form.
-      if (error) throw new Error('Your account is ready. Go to the sign-in page and sign in with your email and password.');
+      if (error)
+        throw new Error(
+          'Your account is ready. Go to the sign-in page and sign in with your email and password.',
+        );
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['me'] });
@@ -51,10 +54,23 @@ export default function InvitePage() {
           <form {...formProps(form)}>
             <FieldGroup>
               <form.AppField name="name">
-                {(field) => <field.TextField label="Your name" autoComplete="name" description="Shown to other Members next to your work." />}
+                {(field) => (
+                  <field.TextField
+                    label="Your name"
+                    autoComplete="name"
+                    description="Shown to other Members next to your work."
+                  />
+                )}
               </form.AppField>
               <form.AppField name="password">
-                {(field) => <field.TextField label="Choose a password" type="password" autoComplete="new-password" description="At least 8 characters." />}
+                {(field) => (
+                  <field.TextField
+                    label="Choose a password"
+                    type="password"
+                    autoComplete="new-password"
+                    description="At least 8 characters."
+                  />
+                )}
               </form.AppField>
               <FormError error={join.error} />
               <form.AppForm>

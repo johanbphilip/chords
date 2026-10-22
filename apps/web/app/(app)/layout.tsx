@@ -19,8 +19,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     if (!isPending && !me) router.replace('/sign-in');
   }, [isPending, me, router]);
 
-  if (!me) return null;
-
   const signOut = useMutation({
     mutationFn: () => authClient.signOut(),
     // Even if the server call fails, this device must forget the token.
@@ -30,6 +28,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       router.replace('/sign-in');
     },
   });
+
+  if (!me) return null;
 
   return (
     <>

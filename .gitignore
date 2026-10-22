@@ -6,3 +6,7 @@ dist
 .pgdata
 *.tsbuildinfo
 next-env.d.ts
+
+# Private: planning docs and tickets stay local
+/docs/
+/.scratch/

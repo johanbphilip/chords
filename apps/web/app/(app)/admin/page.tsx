@@ -62,12 +62,16 @@ function ApprovedEmails() {
     defaultValues: { email: '' },
     validators: { onChange: approveEmailSchema, onSubmit: approveEmailSchema },
     onSubmit: async ({ value, formApi }) => {
-      const approved = await add.mutateAsync(approveEmailSchema.parse(value).email).then(() => true, () => false);
+      const approved = await add.mutateAsync(approveEmailSchema.parse(value).email).then(
+        () => true,
+        () => false,
+      );
       if (approved) formApi.reset();
     },
   });
   const reissue = useMutation({
-    mutationFn: (address: string) => apiPost<Invite>(`/admin/approved-emails/${encodeURIComponent(address)}/invite`),
+    mutationFn: (address: string) =>
+      apiPost<Invite>(`/admin/approved-emails/${encodeURIComponent(address)}/invite`),
     onSuccess: setInvite,
   });
   const requests = useQuery({
@@ -75,50 +79,88 @@ function ApprovedEmails() {
     queryFn: () => apiGet<AccessRequest[]>('/admin/access-requests'),
   });
   const approveRequest = useMutation({
-    mutationFn: (address: string) => apiPost<Invite>(`/admin/access-requests/${encodeURIComponent(address)}/approve`),
+    mutationFn: (address: string) =>
+      apiPost<Invite>(`/admin/access-requests/${encodeURIComponent(address)}/approve`),
     onSuccess: (created) => {
       setInvite(created);
-      return Promise.all([refresh(), queryClient.invalidateQueries({ queryKey: ['access-requests'] })]);
+      return Promise.all([
+        refresh(),
+        queryClient.invalidateQueries({ queryKey: ['access-requests'] }),
+      ]);
     },
   });
   const declineRequest = useMutation({
-    mutationFn: (address: string) => apiDelete(`/admin/access-requests/${encodeURIComponent(address)}`),
+    mutationFn: (address: string) =>
+      apiDelete(`/admin/access-requests/${encodeURIComponent(address)}`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['access-requests'] }),
   });
   const resetLink = useMutation({
-    mutationFn: (address: string) => apiPost<Reset>(`/admin/approved-emails/${encodeURIComponent(address)}/reset-link`),
+    mutationFn: (address: string) =>
+      apiPost<Reset>(`/admin/approved-emails/${encodeURIComponent(address)}/reset-link`),
     onSuccess: setReset,
   });
   const person = useMutation({
-    mutationFn: ({ address, action, role }: { address: string; action: 'revoke' | 'restore' | 'role'; role?: Role }) =>
+    mutationFn: ({
+      address,
+      action,
+      role,
+    }: {
+      address: string;
+      action: 'revoke' | 'restore' | 'role';
+      role?: Role;
+    }) =>
       action === 'role'
         ? apiPut(`/admin/members/${encodeURIComponent(address)}/role`, { role })
         : apiPost(`/admin/members/${encodeURIComponent(address)}/${action}`),
     onSuccess: refresh,
   });
   const remove = useMutation({
-    mutationFn: (address: string) => apiDelete(`/admin/approved-emails/${encodeURIComponent(address)}`),
+    mutationFn: (address: string) =>
+      apiDelete(`/admin/approved-emails/${encodeURIComponent(address)}`),
     onSuccess: refresh,
   });
 
-  const problem = person.error ?? approveRequest.error ?? declineRequest.error ?? requests.error ?? add.error ?? reissue.error ?? resetLink.error ?? remove.error ?? error;
+  const problem =
+    person.error ??
+    approveRequest.error ??
+    declineRequest.error ??
+    requests.error ??
+    add.error ??
+    reissue.error ??
+    resetLink.error ??
+    remove.error ??
+    error;
 
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-xl font-medium">Who may sign in</h1>
       <form {...formProps(approveForm)} className="flex items-start gap-2">
         <approveForm.AppField name="email">
-          {(field) => <field.TextField label="Email to approve" hideLabel type="email" placeholder="Email to approve" className="flex-1" />}
+          {(field) => (
+            <field.TextField
+              label="Email to approve"
+              hideLabel
+              type="email"
+              placeholder="Email to approve"
+              className="flex-1"
+            />
+          )}
         </approveForm.AppField>
         <approveForm.AppForm>
           <approveForm.SubmitButton pendingLabel="Approving…">Approve</approveForm.SubmitButton>
         </approveForm.AppForm>
       </form>
       {invite?.inviteUrl && (
-        <CopyLink text={`Send this link to ${invite.email}. It works once and expires in 7 days. It is shown only now.`} url={invite.inviteUrl} />
+        <CopyLink
+          text={`Send this link to ${invite.email}. It works once and expires in 7 days. It is shown only now.`}
+          url={invite.inviteUrl}
+        />
       )}
       {reset && (
-        <CopyLink text={`Send this link to ${reset.email} so they can choose a new password. It works once and expires in an hour.`} url={reset.resetUrl} />
+        <CopyLink
+          text={`Send this link to ${reset.email} so they can choose a new password. It works once and expires in an hour.`}
+          url={reset.resetUrl}
+        />
       )}
       <FormError error={problem ?? null} />
       {requests.data && requests.data.length > 0 && (
@@ -129,10 +171,18 @@ function ApprovedEmails() {
               <li key={request.email} className="flex items-center gap-2 text-sm">
                 <span>{request.name}</span>
                 <span className="text-muted-foreground">{request.email}</span>
-                <Button size="sm" className="ml-auto" onClick={() => approveRequest.mutate(request.email)}>
+                <Button
+                  size="sm"
+                  className="ml-auto"
+                  onClick={() => approveRequest.mutate(request.email)}
+                >
                   Approve
                 </Button>
-                <Button variant="ghost" size="sm" onClick={() => declineRequest.mutate(request.email)}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => declineRequest.mutate(request.email)}
+                >
                   Decline
                 </Button>
               </li>
@@ -145,7 +195,17 @@ function ApprovedEmails() {
           <li key={p.email} className="flex flex-wrap items-center gap-2 text-sm">
             <span>{p.name ?? p.email}</span>
             {p.name && <span className="text-muted-foreground">{p.email}</span>}
-            <Badge variant={p.status === 'revoked' ? 'destructive' : p.status === 'invited' ? 'outline' : 'secondary'}>{LABEL[p.status](p.role)}</Badge>
+            <Badge
+              variant={
+                p.status === 'revoked'
+                  ? 'destructive'
+                  : p.status === 'invited'
+                    ? 'outline'
+                    : 'secondary'
+              }
+            >
+              {LABEL[p.status](p.role)}
+            </Badge>
             <span className="ml-auto flex gap-1">
               {p.status === 'invited' && (
                 <>
@@ -165,17 +225,31 @@ function ApprovedEmails() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => person.mutate({ address: p.email, action: 'role', role: p.role === 'admin' ? 'member' : 'admin' })}
+                    onClick={() =>
+                      person.mutate({
+                        address: p.email,
+                        action: 'role',
+                        role: p.role === 'admin' ? 'member' : 'admin',
+                      })
+                    }
                   >
                     {p.role === 'admin' ? 'Make Member' : 'Make Admin'}
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={() => person.mutate({ address: p.email, action: 'revoke' })}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => person.mutate({ address: p.email, action: 'revoke' })}
+                  >
                     Revoke
                   </Button>
                 </>
               )}
               {p.status === 'revoked' && (
-                <Button variant="ghost" size="sm" onClick={() => person.mutate({ address: p.email, action: 'restore' })}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => person.mutate({ address: p.email, action: 'restore' })}
+                >
                   Restore
                 </Button>
               )}
@@ -200,7 +274,12 @@ function CopyLink({ text, url }: { text: string; url: string }) {
       <CardContent className="flex flex-col gap-2 text-sm">
         <p>{text}</p>
         <div className="flex gap-2">
-          <Input readOnly value={url} onFocus={(e) => e.currentTarget.select()} aria-label="Link to send" />
+          <Input
+            readOnly
+            value={url}
+            onFocus={(e) => e.currentTarget.select()}
+            aria-label="Link to send"
+          />
           <Button
             type="button"
             onClick={async () => {

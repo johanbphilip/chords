@@ -1,4 +1,12 @@
-import { findAmbiguousLines, parseChordSheet, suggestKey, createSongSchema, parseSongTextSchema, replaceSongSchema, type SongInput } from '@chords/shared';
+import {
+  findAmbiguousLines,
+  parseChordSheet,
+  suggestKey,
+  createSongSchema,
+  parseSongTextSchema,
+  replaceSongSchema,
+  type SongInput,
+} from '@chords/shared';
 import { Body, Controller, Get, HttpCode, Inject, Param, Post, Put } from '@nestjs/common';
 import { ZodPipe } from '../infrastructure/validation/zod.pipe.js';
 import { SongsService } from './songs.service.js';

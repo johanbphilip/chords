@@ -11,7 +11,10 @@ describe('creating and reading a Song', () => {
   let app: INestApplication;
   let member: string;
   const http = () => request(app.getHttpServer());
-  const create = (body: object, token = member) => http().post('/songs').set(bearer(token)).send(body);
+  const edit = (id: string, body: object, token = member) =>
+    http().put(`/songs/${id}`).set(bearer(token)).send(body);
+  const create = (body: object, token = member) =>
+    http().post('/songs').set(bearer(token)).send(body);
   const read = (id: string, token = member) => http().get(`/songs/${id}`).set(bearer(token));
 
   beforeAll(async () => {
@@ -26,19 +29,45 @@ describe('creating and reading a Song', () => {
     const title = uniqueTitle();
     const created = await create({ title }).expect(201);
     const song = (await read(created.body.id).expect(200)).body;
-    expect(song).toMatchObject({ id: created.body.id, title, artist: '', key: null, tempo: null, timeSignature: null });
+    expect(song).toMatchObject({
+      id: created.body.id,
+      title,
+      artist: '',
+      key: null,
+      tempo: null,
+      timeSignature: null,
+    });
     expect(song.content).toEqual({ sections: [], order: [] });
   });
 
   it('stores Sections with each chord attached to the syllable it sits over', async () => {
-    const text = ['[Verse 1]', 'G       C', 'Amazing grace', '', '[Chorus]', 'D', 'How sweet'].join('\n');
-    const created = await create({ title: uniqueTitle(), key: 'G', tempo: 72, timeSignature: '3/4', text }).expect(201);
+    const text = ['[Verse 1]', 'G       C', 'Amazing grace', '', '[Chorus]', 'D', 'How sweet'].join(
+      '\n',
+    );
+    const created = await create({
+      title: uniqueTitle(),
+      key: 'G',
+      tempo: 72,
+      timeSignature: '3/4',
+      text,
+    }).expect(201);
     const song = (await read(created.body.id).expect(200)).body;
     expect(song).toMatchObject({ key: 'G', tempo: 72, timeSignature: '3/4' });
     expect(song.content).toEqual({
       order: ['Verse 1', 'Chorus'],
       sections: [
-        { name: 'Verse 1', lines: [{ lyric: 'Amazing grace', chords: [{ chord: 'G', at: 0 }, { chord: 'C', at: 8 }] }] },
+        {
+          name: 'Verse 1',
+          lines: [
+            {
+              lyric: 'Amazing grace',
+              chords: [
+                { chord: 'G', at: 0 },
+                { chord: 'C', at: 8 },
+              ],
+            },
+          ],
+        },
         { name: 'Chorus', lines: [{ lyric: 'How sweet', chords: [{ chord: 'D', at: 0 }] }] },
       ],
     });
@@ -61,11 +90,17 @@ describe('creating and reading a Song', () => {
     });
 
     it('accepts minor and flat or sharp Keys', async () => {
-      for (const key of ['F#m', 'Bb', 'Ebm', 'C']) await create({ title: uniqueTitle(), key }).expect(201);
+      for (const key of ['F#m', 'Bb', 'Ebm', 'C'])
+        await create({ title: uniqueTitle(), key }).expect(201);
     });
 
     it('stores a blank Key, tempo and time signature as none', async () => {
-      const created = await create({ title: uniqueTitle(), key: '', tempo: null, timeSignature: '' }).expect(201);
+      const created = await create({
+        title: uniqueTitle(),
+        key: '',
+        tempo: null,
+        timeSignature: '',
+      }).expect(201);
       expect(created.body).toMatchObject({ key: null, tempo: null, timeSignature: null });
     });
   });
@@ -81,7 +116,10 @@ describe('creating and reading a Song', () => {
     it('ignores capitals and extra spaces in both title and artist', async () => {
       const title = uniqueTitle('Amazing  Grace');
       await create({ title, artist: 'John Newton' }).expect(201);
-      await create({ title: `  ${title.toUpperCase().replace('  ', ' ')} `, artist: ' john   NEWTON' }).expect(409);
+      await create({
+        title: `  ${title.toUpperCase().replace('  ', ' ')} `,
+        artist: ' john   NEWTON',
+      }).expect(409);
     });
 
     it('treats a blank artist as its own value', async () => {
@@ -101,21 +139,28 @@ describe('creating and reading a Song', () => {
   });
 
   it('keeps the spaces that position the first chord line', async () => {
-    const created = await create({ title: uniqueTitle(), text: '    G\nAmazing grace' }).expect(201);
+    const created = await create({ title: uniqueTitle(), text: '    G\nAmazing grace' }).expect(
+      201,
+    );
     expect(created.body.content.sections[0].lines[0].chords).toEqual([{ chord: 'G', at: 4 }]);
   });
 
   describe('finding Songs', () => {
     it('lists Songs alphabetically by title, ignoring capitals', async () => {
       const tag = uniqueTitle('List');
-      for (const title of [`${tag} banana`, `${tag} Cherry`, `${tag} apple`]) await create({ title, artist: 'A', key: 'D' }).expect(201);
-      const listed = (await http().get('/songs').set(bearer(member)).expect(200)).body as { title: string }[];
+      for (const title of [`${tag} banana`, `${tag} Cherry`, `${tag} apple`])
+        await create({ title, artist: 'A', key: 'D' }).expect(201);
+      const res = await http().get('/songs').set(bearer(member)).expect(200);
+      const listed: { title: string }[] = res.body;
       expect(listed.map((song) => song.title).filter((title) => title.startsWith(tag))).toEqual([
         `${tag} apple`,
         `${tag} banana`,
         `${tag} Cherry`,
       ]);
-      expect(listed.find((song) => song.title === `${tag} apple`)).toMatchObject({ artist: 'A', key: 'D' });
+      expect(listed.find((song) => song.title === `${tag} apple`)).toMatchObject({
+        artist: 'A',
+        key: 'D',
+      });
     });
 
     it('answers 404 for a Song that does not exist, even for an id that is not a UUID', async () => {
@@ -131,8 +176,8 @@ describe('creating and reading a Song', () => {
   });
 
   describe('editing a Song', () => {
-    const edit = (id: string, body: object, token = member) => http().put(`/songs/${id}`).set(bearer(token)).send(body);
-    const TEXT = '[Verse]\nG       C\nAmazing grace\n\n[Chorus]\nD\nHow sweet\n\n[Verse]\nG       C\nAmazing grace';
+    const TEXT =
+      '[Verse]\nG       C\nAmazing grace\n\n[Chorus]\nD\nHow sweet\n\n[Verse]\nG       C\nAmazing grace';
 
     it('hands back the text to edit: chords above lyrics, Sections in their original order', async () => {
       const created = await create({ title: uniqueTitle(), text: TEXT }).expect(201);
@@ -147,24 +192,43 @@ describe('creating and reading a Song', () => {
     });
 
     it('updates chords and lyrics, and every Member sees the edit', async () => {
-      const created = await create({ title: uniqueTitle(), text: '[Verse]\nG\nAmazing grace' }).expect(201);
+      const created = await create({
+        title: uniqueTitle(),
+        text: '[Verse]\nG\nAmazing grace',
+      }).expect(201);
       const other = (await joinAs(app, await signIn(app, ADMIN.email, ADMIN.password))).token;
       const title = (await read(created.body.id).expect(200)).body.title;
-      await edit(created.body.id, { title, text: '[Verse]\nA     E\nAmazing grace, how sweet' }, other).expect(200);
+      await edit(
+        created.body.id,
+        { title, text: '[Verse]\nA     E\nAmazing grace, how sweet' },
+        other,
+      ).expect(200);
       const seen = (await read(created.body.id, member).expect(200)).body;
       expect(seen.content.sections[0].lines[0]).toEqual({
         lyric: 'Amazing grace, how sweet',
-        chords: [{ chord: 'A', at: 0 }, { chord: 'E', at: 6 }],
+        chords: [
+          { chord: 'A', at: 0 },
+          { chord: 'E', at: 6 },
+        ],
       });
     });
 
     it('adds, removes and renames Sections by changing the headers', async () => {
-      const created = await create({ title: uniqueTitle(), text: '[Verse]\nOne\n\n[Chorus]\nTwo' }).expect(201);
+      const created = await create({
+        title: uniqueTitle(),
+        text: '[Verse]\nOne\n\n[Chorus]\nTwo',
+      }).expect(201);
       const title = (await read(created.body.id).expect(200)).body.title;
       const sectionNames = async () => (await read(created.body.id).expect(200)).body.content.order;
-      await edit(created.body.id, { title, text: '[Verse]\nOne\n\n[Chorus]\nTwo\n\n[Bridge]\nThree' }).expect(200);
+      await edit(created.body.id, {
+        title,
+        text: '[Verse]\nOne\n\n[Chorus]\nTwo\n\n[Bridge]\nThree',
+      }).expect(200);
       expect(await sectionNames()).toEqual(['Verse', 'Chorus', 'Bridge']);
-      await edit(created.body.id, { title, text: '[Verse]\nOne\n\n[Refrain]\nTwo\n\n[Bridge]\nThree' }).expect(200);
+      await edit(created.body.id, {
+        title,
+        text: '[Verse]\nOne\n\n[Refrain]\nTwo\n\n[Bridge]\nThree',
+      }).expect(200);
       expect(await sectionNames()).toEqual(['Verse', 'Refrain', 'Bridge']);
       await edit(created.body.id, { title, text: '[Verse]\nOne\n\n[Bridge]\nThree' }).expect(200);
       expect(await sectionNames()).toEqual(['Verse', 'Bridge']);
@@ -175,11 +239,27 @@ describe('creating and reading a Song', () => {
       const second = await create({ title: uniqueTitle(), artist: 'B' }).expect(201);
       const firstSong = (await read(first.body.id).expect(200)).body;
       // The Song may be renamed, change case only, or drop its own artist without clashing with itself.
-      await edit(first.body.id, { title: firstSong.title.toUpperCase(), artist: 'a', key: 'Em', tempo: 90, timeSignature: '6/8', text: '' }).expect(200);
-      expect((await read(first.body.id).expect(200)).body).toMatchObject({ artist: 'a', key: 'Em', tempo: 90, timeSignature: '6/8' });
+      await edit(first.body.id, {
+        title: firstSong.title.toUpperCase(),
+        artist: 'a',
+        key: 'Em',
+        tempo: 90,
+        timeSignature: '6/8',
+        text: '',
+      }).expect(200);
+      expect((await read(first.body.id).expect(200)).body).toMatchObject({
+        artist: 'a',
+        key: 'Em',
+        tempo: 90,
+        timeSignature: '6/8',
+      });
       // But not onto another Song.
       const secondSong = (await read(second.body.id).expect(200)).body;
-      const clash = await edit(first.body.id, { title: secondSong.title, artist: 'b', text: '' }).expect(409);
+      const clash = await edit(first.body.id, {
+        title: secondSong.title,
+        artist: 'b',
+        text: '',
+      }).expect(409);
       expect(clash.body.existingId).toBe(second.body.id);
     });
 

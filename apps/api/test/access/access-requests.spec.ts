@@ -1,17 +1,28 @@
 import { afterEach, afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import { ADMIN, bearer, createApp, emailsTo, inviteToken, joinAs, signIn, uniqueEmail } from '../helpers.js';
+import {
+  ADMIN,
+  bearer,
+  createApp,
+  emailsTo,
+  inviteToken,
+  joinAs,
+  signIn,
+  uniqueEmail,
+} from '../helpers.js';
 
 describe('access requests', () => {
   let app: INestApplication;
   let admin: string;
   const http = () => request(app.getHttpServer());
-  const ask = (email: string, name = 'Maria Lopez') => http().post('/auth/request-access').send({ email, name });
-  const pending = async () => (await http().get('/admin/access-requests').set(bearer(admin)).expect(200)).body as {
-    email: string;
-    name: string;
-  }[];
+  const ask = (email: string, name = 'Maria Lopez') =>
+    http().post('/auth/request-access').send({ email, name });
+  const pending = async () => {
+    const res = await http().get('/admin/access-requests').set(bearer(admin)).expect(200);
+    const requests: { email: string; name: string }[] = res.body;
+    return requests;
+  };
 
   beforeAll(async () => {
     app = await createApp();
@@ -24,11 +35,13 @@ describe('access requests', () => {
     delete process.env.ACCESS_REQUEST_CAP;
   });
 
-  it('puts the person on the Admin\'s pending list and tells them it was received', async () => {
+  it("puts the person on the Admin's pending list and tells them it was received", async () => {
     const email = uniqueEmail('hopeful');
     const res = await ask(email).expect(201);
     expect(res.body).toEqual({ received: true });
-    expect((await pending()).filter((r) => r.email === email)).toEqual([{ email, name: 'Maria Lopez', requestedAt: expect.any(String) }]);
+    expect((await pending()).filter((r) => r.email === email)).toEqual([
+      { email, name: 'Maria Lopez', requestedAt: expect.any(String) },
+    ]);
   });
 
   it('does not make a second entry when the same email asks again', async () => {
@@ -56,7 +69,10 @@ describe('access requests', () => {
     const email = uniqueEmail('hopeful');
     await ask(email, 'Joy').expect(201);
     expect(emailsTo(email)).toEqual([]);
-    const res = await http().post(`/admin/access-requests/${encodeURIComponent(email)}/approve`).set(bearer(admin)).expect(201);
+    const res = await http()
+      .post(`/admin/access-requests/${encodeURIComponent(email)}/approve`)
+      .set(bearer(admin))
+      .expect(201);
     expect(res.body.email).toBe(email);
     expect(emailsTo(email)).toHaveLength(1);
     expect((await pending()).filter((r) => r.email === email)).toEqual([]);
@@ -70,7 +86,10 @@ describe('access requests', () => {
   it('lets the Admin decline, which removes the request and sends nothing', async () => {
     const email = uniqueEmail('hopeful');
     await ask(email).expect(201);
-    await http().delete(`/admin/access-requests/${encodeURIComponent(email)}`).set(bearer(admin)).expect(200);
+    await http()
+      .delete(`/admin/access-requests/${encodeURIComponent(email)}`)
+      .set(bearer(admin))
+      .expect(200);
     expect((await pending()).filter((r) => r.email === email)).toEqual([]);
     expect(emailsTo(email)).toEqual([]);
   });
@@ -78,7 +97,10 @@ describe('access requests', () => {
   it('leaves a pending or declined person unable to sign in', async () => {
     const email = uniqueEmail('hopeful');
     await ask(email).expect(201);
-    await http().post('/api/auth/sign-in/email').send({ email, password: 'correct horse' }).expect(401);
+    await http()
+      .post('/api/auth/sign-in/email')
+      .send({ email, password: 'correct horse' })
+      .expect(401);
   });
 
   it('is for Admins only', async () => {
@@ -86,8 +108,14 @@ describe('access requests', () => {
     const email = uniqueEmail('hopeful');
     await ask(email).expect(201);
     await http().get('/admin/access-requests').set(bearer(member.token)).expect(403);
-    await http().post(`/admin/access-requests/${encodeURIComponent(email)}/approve`).set(bearer(member.token)).expect(403);
-    await http().delete(`/admin/access-requests/${encodeURIComponent(email)}`).set(bearer(member.token)).expect(403);
+    await http()
+      .post(`/admin/access-requests/${encodeURIComponent(email)}/approve`)
+      .set(bearer(member.token))
+      .expect(403);
+    await http()
+      .delete(`/admin/access-requests/${encodeURIComponent(email)}`)
+      .set(bearer(member.token))
+      .expect(403);
     await http().get('/admin/access-requests').expect(401);
   });
 
@@ -103,6 +131,9 @@ describe('access requests', () => {
   });
 
   it('cannot approve a request that does not exist', async () => {
-    await http().post(`/admin/access-requests/${encodeURIComponent(uniqueEmail())}/approve`).set(bearer(admin)).expect(404);
+    await http()
+      .post(`/admin/access-requests/${encodeURIComponent(uniqueEmail())}/approve`)
+      .set(bearer(admin))
+      .expect(404);
   });
 });

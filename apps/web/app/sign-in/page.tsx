@@ -44,7 +44,13 @@ export default function SignInPage() {
                 {(field) => <field.TextField label="Email" type="email" autoComplete="email" />}
               </form.AppField>
               <form.AppField name="password">
-                {(field) => <field.TextField label="Password" type="password" autoComplete="current-password" />}
+                {(field) => (
+                  <field.TextField
+                    label="Password"
+                    type="password"
+                    autoComplete="current-password"
+                  />
+                )}
               </form.AppField>
               <FormError error={signIn.error} />
               <form.AppForm>

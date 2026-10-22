@@ -15,7 +15,11 @@ export const emailSchema = z
   .toLowerCase()
   .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, EMAIL_MESSAGE);
 
-export const displayNameSchema = z.string(NAME_MESSAGE).trim().min(1, NAME_MESSAGE).max(DISPLAY_NAME_MAX_LENGTH, NAME_MESSAGE);
+export const displayNameSchema = z
+  .string(NAME_MESSAGE)
+  .trim()
+  .min(1, NAME_MESSAGE)
+  .max(DISPLAY_NAME_MAX_LENGTH, NAME_MESSAGE);
 
 export const passwordSchema = z
   .string(`Password must be at least ${PASSWORD_MIN_LENGTH} characters`)

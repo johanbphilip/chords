@@ -1,6 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { getOptionsToken, getStorageToken, ThrottlerGuard, ThrottlerStorage } from '@nestjs/throttler';
+import {
+  getOptionsToken,
+  getStorageToken,
+  ThrottlerGuard,
+  ThrottlerStorage,
+} from '@nestjs/throttler';
 import type { ThrottlerModuleOptions } from '@nestjs/throttler';
 
 const number = (name: string, fallback: number) => Number(process.env[name] ?? fallback);
@@ -18,7 +23,10 @@ export function rateLimits() {
 /** One shared window per client for the whole Nest API; stricter routes override the limit with @Throttle. */
 export function throttlerOptions(): ThrottlerModuleOptions {
   const { disabled, windowMs, defaultMax } = rateLimits();
-  return { throttlers: [{ name: 'default', ttl: windowMs, limit: defaultMax }], skipIf: () => disabled };
+  return {
+    throttlers: [{ name: 'default', ttl: windowMs, limit: defaultMax }],
+    skipIf: () => disabled,
+  };
 }
 
 /**

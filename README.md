@@ -12,12 +12,12 @@ A focused app for our church's musicians. See `CONTEXT.md` for the vocabulary an
 
 Install once with `pnpm install`, then run each in its own terminal:
 
-| Command | What it does |
-| --- | --- |
-| `pnpm db` | Starts a local Postgres (data kept in `.pgdata`) on port 54329 |
+| Command        | What it does                                                                                                                                         |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm db`      | Starts a local Postgres (data kept in `.pgdata`) on port 54329                                                                                       |
 | `pnpm migrate` | Applies pending database migrations from `apps/api/migrations` (needs `DATABASE_URL`). Run it once after `pnpm db`, and after pulling new migrations |
-| `pnpm api` | Starts the NestJS API on port 4000 (needs `DATABASE_URL`, printed by `pnpm db`) |
-| `pnpm web` | Starts the Next.js app on port 3000 (the browser reads `NEXT_PUBLIC_API_URL`, default `http://localhost:4000`) |
+| `pnpm api`     | Starts the NestJS API on port 4000 (needs `DATABASE_URL`, printed by `pnpm db`)                                                                      |
+| `pnpm web`     | Starts the Next.js app on port 3000 (the browser reads `NEXT_PUBLIC_API_URL`, default `http://localhost:4000`)                                       |
 
 `pnpm migrate` and `pnpm api` read `apps/api/.env` if it exists (copy `apps/api/.env.example`; the file is gitignored). Variables already set in the shell win over the file.
 
@@ -47,3 +47,21 @@ Architecture and access decisions are in `docs/adr/`: the stack (0001), Better A
 
 - `pnpm typecheck` checks both apps and the shared package.
 - `pnpm test` runs every package's tests: the API against a throwaway real Postgres, the shared package's chord sheet and schema tests, and the web app's form and review tests (Vitest with jsdom).
+- `pnpm lint` runs oxlint with type-aware rules (`pnpm lint:fix` applies safe fixes). Config is in `.oxlintrc.json`.
+- `pnpm format` runs oxfmt, and `pnpm format:check` verifies it. Config is in `.oxfmtrc.json`.
+- `pnpm check` runs lint, format check, typecheck and tests, the same as CI.
+
+## Commits and CI
+
+Husky runs two hooks after `pnpm install`: `pre-commit` runs lint-staged (oxlint `--fix` and oxfmt on staged files), and `commit-msg` runs commitlint. A commit message is `<ticket id>: <short message>`, 75 characters or fewer on the first line, with an optional point-form body:
+
+```
+ADM 1.1: Add linting
+
+- Add the setlists table and migration
+- List a setlist's songs in order
+```
+
+Tickets are titled `[ABC 1.x] - Short description`: `ABC` is a short code for the story (`CHD` chord sheet, `ADM` admin and tooling), `1` is the phase, and `.x` the ticket within it (`1.1.1` for a sub-ticket).
+
+GitHub Actions (`.github/workflows`) runs lint and format, typecheck, tests and the web build on every push and pull request, commitlint over a pull request's commits, CodeQL, and a dependency review. Dependabot opens weekly update pull requests.

@@ -32,7 +32,8 @@ export default function ForgotPasswordPage() {
         <CardContent className="flex flex-col gap-3">
           {ask.isSuccess ? (
             <p>
-              If that email is registered, a reset link is on its way. If nothing arrives, ask an Admin to send you a link.
+              If that email is registered, a reset link is on its way. If nothing arrives, ask an
+              Admin to send you a link.
             </p>
           ) : (
             <form {...formProps(form)}>

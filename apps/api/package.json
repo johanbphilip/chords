@@ -1,6 +1,7 @@
 {
   "name": "api",
   "private": true,
+  "type": "module",
   "scripts": {
     "db": "tsx scripts/dev-db.ts",
     "migrate": "tsx --env-file-if-exists=.env scripts/migrate.ts",
@@ -34,6 +35,5 @@
     "typescript": "^7.0.2",
     "unplugin-swc": "^2.0.0",
     "vitest": "^5.0.5"
-  },
-  "type": "module"
+  }
 }

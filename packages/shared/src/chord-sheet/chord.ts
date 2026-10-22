@@ -7,4 +7,5 @@ export const isChord = (text: string): boolean => CHORD.test(text);
 export const NOTE = /^([A-G])([#b]?)/;
 
 /** Whether what follows a root (the "m" in "Am7", not the "maj" in "Cmaj7") makes a chord or Key minor. */
-export const isMinorSuffix = (suffix: string): boolean => suffix.startsWith('m') && !suffix.startsWith('maj');
+export const isMinorSuffix = (suffix: string): boolean =>
+  suffix.startsWith('m') && !suffix.startsWith('maj');

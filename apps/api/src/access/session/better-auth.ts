@@ -1,4 +1,4 @@
-import { PASSWORD_MIN_LENGTH, type Role } from '@chords/shared';
+import { PASSWORD_MIN_LENGTH } from '@chords/shared';
 import { betterAuth } from 'better-auth';
 import { createAccessControl } from 'better-auth/plugins/access';
 import { adminAc, defaultStatements, userAc } from 'better-auth/plugins/admin/access';
@@ -10,7 +10,9 @@ import { rateLimits } from '../../infrastructure/rate-limit/rate-limit.js';
 const statements = { ...defaultStatements, approvedEmail: ['manage'] } as const;
 const ac = createAccessControl(statements);
 
-export type Permission = { [Resource in keyof typeof statements]?: (typeof statements)[Resource][number][] };
+export type Permission = {
+  [Resource in keyof typeof statements]?: (typeof statements)[Resource][number][];
+};
 
 export interface AuthHooks {
   sendResetPassword: (email: string, token: string) => Promise<void>;
@@ -35,10 +37,17 @@ export function createAuth(pool: Pool, hooks: AuthHooks) {
       sendResetPassword: ({ user, token }) => hooks.sendResetPassword(user.email, token),
     },
     // The web app and API are on different origins, so sessions travel as bearer tokens.
-    plugins: [bearer(), admin({ ac, roles: {
+    plugins: [
+      bearer(),
+      admin({
+        ac,
+        roles: {
           admin: ac.newRole({ ...adminAc.statements, approvedEmail: ['manage'] }),
           member: ac.newRole({ ...userAc.statements }),
-        }, defaultRole: 'member' })],
+        },
+        defaultRole: 'member',
+      }),
+    ],
     // The schema comes from migrations (pnpm migrate), not from Better Auth, so skip its own check.
     advanced: { database: { validateSchema: false } },
     // Signed in for 30 days, renewed (at most once a day) whenever the session is used.
@@ -70,4 +79,5 @@ export function createAuth(pool: Pool, hooks: AuthHooks) {
 
 export type Auth = ReturnType<typeof createAuth>;
 
-export const webLink = (path: string) => `${process.env.WEB_ORIGIN ?? 'http://localhost:3000'}${path}`;
+export const webLink = (path: string) =>
+  `${process.env.WEB_ORIGIN ?? 'http://localhost:3000'}${path}`;

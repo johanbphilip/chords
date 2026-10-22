@@ -10,10 +10,18 @@ const LIMIT_ENV = {
   RATE_LIMIT_REGISTER_MAX: '2',
 };
 
+const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 describe('rate limiting', () => {
   let app: INestApplication;
   const saved: Record<string, string | undefined> = {};
   const http = () => request(app.getHttpServer());
+  const inviteAttempt = () =>
+    http()
+      .post('/auth/accept-invite')
+      .send({ token: 'made-up', name: 'Nobody', password: 'long enough' });
+  const signInAttempt = () =>
+    http().post('/api/auth/sign-in/email').send({ email: ADMIN.email, password: 'wrong-guess' });
 
   beforeEach(async () => {
     for (const [key, value] of Object.entries(LIMIT_ENV)) {
@@ -32,27 +40,24 @@ describe('rate limiting', () => {
     }
   });
 
-  const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
   it('slows invite attempts sooner than ordinary requests', async () => {
-    const attempt = () => http().post('/auth/accept-invite').send({ token: 'made-up', name: 'Nobody', password: 'long enough' });
-    expect((await attempt()).status).toBe(400);
-    expect((await attempt()).status).toBe(400);
-    expect((await attempt()).status).toBe(429);
+    expect((await inviteAttempt()).status).toBe(400);
+    expect((await inviteAttempt()).status).toBe(400);
+    expect((await inviteAttempt()).status).toBe(429);
   });
 
   it('applies a default limit to every other endpoint', async () => {
     const token = await signIn(app, ADMIN.email, ADMIN.password);
     const statuses: number[] = [];
-    for (let i = 0; i < 7; i++) statuses.push((await http().get('/auth/me').set(bearer(token))).status);
+    for (let i = 0; i < 7; i++)
+      statuses.push((await http().get('/auth/me').set(bearer(token))).status);
     expect(statuses.slice(0, 4)).toEqual([200, 200, 200, 200]);
     expect(statuses.at(-1)).toBe(429);
   });
 
   it('limits sign-in attempts, so a password cannot be guessed at speed', async () => {
-    const attempt = () => http().post('/api/auth/sign-in/email').send({ email: ADMIN.email, password: 'wrong-guess' });
     const statuses: number[] = [];
-    for (let i = 0; i < 6; i++) statuses.push((await attempt()).status);
+    for (let i = 0; i < 6; i++) statuses.push((await signInAttempt()).status);
     expect(statuses.every((status) => status === 401 || status === 429)).toBe(true);
     expect(statuses.at(-1)).toBe(429);
   });
@@ -72,18 +77,19 @@ describe('rate limiting', () => {
   it('limits password reset requests, so nobody can flood an inbox', async () => {
     const statuses: number[] = [];
     for (let i = 0; i < 6; i++) {
-      statuses.push((await http().post('/api/auth/request-password-reset').send({ email: ADMIN.email })).status);
+      statuses.push(
+        (await http().post('/api/auth/request-password-reset').send({ email: ADMIN.email })).status,
+      );
     }
     expect(statuses.slice(0, 3)).toEqual([200, 200, 200]);
     expect(statuses.at(-1)).toBe(429);
   });
 
   it('lets a limited caller back in once the window has passed', async () => {
-    const attempt = () => http().post('/auth/accept-invite').send({ token: 'made-up', name: 'Nobody', password: 'long enough' });
-    await attempt();
-    await attempt();
-    expect((await attempt()).status).toBe(429);
+    await inviteAttempt();
+    await inviteAttempt();
+    expect((await inviteAttempt()).status).toBe(429);
     await pause(1100);
-    expect((await attempt()).status).toBe(400);
+    expect((await inviteAttempt()).status).toBe(400);
   });
 });

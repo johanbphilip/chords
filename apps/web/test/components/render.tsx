@@ -13,17 +13,29 @@ export interface Reply {
 /** Replaces `fetch` so no request leaves the test. Returns the requests made, as method, path and parsed body. */
 export function mockApi(reply: (method: string, path: string) => Reply = () => ({ body: {} })) {
   const requests: { method: string; path: string; body: unknown }[] = [];
-  globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-    const path = new URL(String(input)).pathname;
+  globalThis.fetch = vi.fn<typeof fetch>(async (input, init) => {
+    const path = new URL(input instanceof Request ? input.url : input).pathname;
     const method = init?.method ?? 'GET';
-    requests.push({ method, path, body: init?.body ? JSON.parse(String(init.body)) : undefined });
+    requests.push({
+      method,
+      path,
+      body: typeof init?.body === 'string' ? JSON.parse(init.body) : undefined,
+    });
     const { status = 200, body = {} } = reply(method, path);
-    return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
-  }) as typeof fetch;
+    return new Response(JSON.stringify(body), {
+      status,
+      headers: { 'content-type': 'application/json' },
+    });
+  });
   return requests;
 }
 
 export function renderWithQuery(ui: ReactElement) {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
-  return { user: userEvent.setup(), ...render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>) };
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  return {
+    user: userEvent.setup(),
+    ...render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>),
+  };
 }

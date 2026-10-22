@@ -9,10 +9,27 @@ import { settled, formProps, useAppForm, zodValidators } from '@/components/form
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { FieldDescription, FieldError, FieldGroup, FieldLegend, FieldSet } from '@/components/ui/field';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLegend,
+  FieldSet,
+} from '@/components/ui/field';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { apiPost, apiPut, existingSongId } from '@/lib/api';
-import { reviewBody, reviewFormSchema, reviewProblems, type ReviewValues } from '@/lib/songs/import-form';
+import {
+  reviewBody,
+  reviewFormSchema,
+  reviewProblems,
+  type ReviewValues,
+} from '@/lib/songs/import-form';
 import {
   addOrderEntry,
   mergeSection,
@@ -44,9 +61,13 @@ export function ReviewForm({ parsed, onBack }: { parsed: Parsed; onBack: () => v
     if (song.similar.length === 0) router.push(`/songs/${song.id}`);
     else setSaved(song);
   };
-  const save = useMutation({ mutationFn: (body: ReviewBody) => apiPost<Saved>('/songs', body), onSuccess: finish });
+  const save = useMutation({
+    mutationFn: (body: ReviewBody) => apiPost<Saved>('/songs', body),
+    onSuccess: finish,
+  });
   const writeOver = useMutation({
-    mutationFn: ({ id, body }: { id: string; body: ReviewBody }) => apiPut<Saved>(`/songs/${id}`, body),
+    mutationFn: ({ id, body }: { id: string; body: ReviewBody }) =>
+      apiPut<Saved>(`/songs/${id}`, body),
     onSuccess: finish,
   });
 
@@ -64,7 +85,10 @@ export function ReviewForm({ parsed, onBack }: { parsed: Parsed; onBack: () => v
 
   /** Applies one of the pure review operations to the Sections and order the form holds. */
   const edit = (change: (draft: Draft) => Draft) => {
-    const next = change({ sections: form.getFieldValue('sections'), order: form.getFieldValue('order') });
+    const next = change({
+      sections: form.getFieldValue('sections'),
+      order: form.getFieldValue('order'),
+    });
     // Validate once both are set, so no check sees Sections and an order that disagree.
     form.setFieldValue('sections', next.sections, { dontValidate: true });
     form.setFieldValue('order', next.order);
@@ -86,13 +110,19 @@ export function ReviewForm({ parsed, onBack }: { parsed: Parsed; onBack: () => v
         <FieldSet>
           <form.AppField name="title">{(field) => <field.TextField label="Title" />}</form.AppField>
           <div className="grid grid-cols-2 gap-3">
-            <form.AppField name="artist">{(field) => <field.TextField label="Artist (optional)" />}</form.AppField>
+            <form.AppField name="artist">
+              {(field) => <field.TextField label="Artist (optional)" />}
+            </form.AppField>
             <form.AppField name="key">
               {(field) => (
                 <field.TextField
                   label="Key"
                   placeholder="G"
-                  description={parsed.suggestedKey ? `Suggested from the first chord (${parsed.suggestedKey}).` : undefined}
+                  description={
+                    parsed.suggestedKey
+                      ? `Suggested from the first chord (${parsed.suggestedKey}).`
+                      : undefined
+                  }
                 />
               )}
             </form.AppField>
@@ -101,11 +131,16 @@ export function ReviewForm({ parsed, onBack }: { parsed: Parsed; onBack: () => v
 
         <form.Subscribe selector={(state) => state.values.sections}>
           {(sections) => {
-            const options = sections.map((section) => ({ value: section.key, label: section.name.trim() || 'Unnamed' }));
+            const options = sections.map((section) => ({
+              value: section.key,
+              label: section.name.trim() || 'Unnamed',
+            }));
             return (
               <FieldSet>
                 <FieldLegend variant="label">Order</FieldLegend>
-                <FieldDescription>The Sections as the song is sung. A Section sung twice appears twice.</FieldDescription>
+                <FieldDescription>
+                  The Sections as the song is sung. A Section sung twice appears twice.
+                </FieldDescription>
                 <form.Field name="order" mode="array">
                   {(orderField) => (
                     <>
@@ -113,15 +148,33 @@ export function ReviewForm({ parsed, onBack }: { parsed: Parsed; onBack: () => v
                         {orderField.state.value.map((_, index) => (
                           <li key={index} className="flex items-start gap-2">
                             <form.AppField name={`order[${index}]`}>
-                              {(field) => <field.SelectField label={`Position ${index + 1}`} hideLabel className="flex-1" options={options} />}
+                              {(field) => (
+                                <field.SelectField
+                                  label={`Position ${index + 1}`}
+                                  hideLabel
+                                  className="flex-1"
+                                  options={options}
+                                />
+                              )}
                             </form.AppField>
-                            <Button type="button" variant="ghost" size="sm" onClick={() => edit((draft) => removeOrderEntry(draft, index))}>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => edit((draft) => removeOrderEntry(draft, index))}
+                            >
                               Remove
                             </Button>
                           </li>
                         ))}
                       </ol>
-                      <Select items={options} value={null} onValueChange={(key) => key !== null && edit((draft) => addOrderEntry(draft, key))}>
+                      <Select
+                        items={options}
+                        value={null}
+                        onValueChange={(key) =>
+                          key !== null && edit((draft) => addOrderEntry(draft, key))
+                        }
+                      >
                         <SelectTrigger className="w-full" aria-label="Add a Section to the order">
                           <SelectValue placeholder="Add a Section to the order…" />
                         </SelectTrigger>
@@ -147,10 +200,20 @@ export function ReviewForm({ parsed, onBack }: { parsed: Parsed; onBack: () => v
             {(sectionsField) => (
               <>
                 {sectionsField.state.value.map((section, index, all) => (
-                  <Card key={section.key} size="sm" className={section.name.trim() === '' ? 'ring-2 ring-destructive' : undefined}>
+                  <Card
+                    key={section.key}
+                    size="sm"
+                    className={section.name.trim() === '' ? 'ring-2 ring-destructive' : undefined}
+                  >
                     <CardHeader className="gap-2">
                       <form.AppField name={`sections[${index}].name`}>
-                        {(field) => <field.TextField label="Section name" hideLabel placeholder="Name this Section" />}
+                        {(field) => (
+                          <field.TextField
+                            label="Section name"
+                            hideLabel
+                            placeholder="Name this Section"
+                          />
+                        )}
                       </form.AppField>
                       <div className="flex gap-1">
                         <Button
@@ -158,7 +221,9 @@ export function ReviewForm({ parsed, onBack }: { parsed: Parsed; onBack: () => v
                           variant="outline"
                           size="xs"
                           disabled={index === 0}
-                          onClick={() => edit((draft) => mergeSection(draft, section.key, 'previous'))}
+                          onClick={() =>
+                            edit((draft) => mergeSection(draft, section.key, 'previous'))
+                          }
                         >
                           Merge into the Section before
                         </Button>
@@ -180,16 +245,27 @@ export function ReviewForm({ parsed, onBack }: { parsed: Parsed; onBack: () => v
                             <button
                               type="button"
                               className="self-start text-xs text-muted-foreground underline"
-                              onClick={() => edit((draft) => splitSection(draft, section.key, lineIndex))}
+                              onClick={() =>
+                                edit((draft) => splitSection(draft, section.key, lineIndex))
+                              }
                             >
                               Split the Section here
                             </button>
                           )}
                           <ChordLine line={line} />
                           {line.ambiguous && (
-                            <p className="flex items-center gap-2 text-xs text-muted-foreground" role="note">
+                            <p
+                              className="flex items-center gap-2 text-xs text-muted-foreground"
+                              role="note"
+                            >
                               This may be a word, not a chord.
-                              <button type="button" className="underline" onClick={() => edit((draft) => treatAsLyric(draft, section.key, lineIndex))}>
+                              <button
+                                type="button"
+                                className="underline"
+                                onClick={() =>
+                                  edit((draft) => treatAsLyric(draft, section.key, lineIndex))
+                                }
+                              >
                                 Treat it as lyrics
                               </button>
                             </p>
@@ -212,14 +288,19 @@ export function ReviewForm({ parsed, onBack }: { parsed: Parsed; onBack: () => v
             <AlertDescription className="flex flex-col gap-2">
               <span>{save.error?.message}</span>
               <span className="flex gap-2">
-                <Link href={`/songs/${existingId}`} className={buttonVariants({ variant: 'outline', size: 'sm' })}>
+                <Link
+                  href={`/songs/${existingId}`}
+                  className={buttonVariants({ variant: 'outline', size: 'sm' })}
+                >
                   Open the existing Song
                 </Link>
                 <Button
                   type="button"
                   size="sm"
                   disabled={writeOver.isPending}
-                  onClick={() => writeOver.mutate({ id: existingId, body: reviewBody(form.state.values) })}
+                  onClick={() =>
+                    writeOver.mutate({ id: existingId, body: reviewBody(form.state.values) })
+                  }
                 >
                   {writeOver.isPending ? 'Writing over…' : 'Write over it'}
                 </Button>

@@ -13,8 +13,12 @@ export function freePort(): Promise<number> {
     const server = net.createServer();
     server.once('error', reject);
     server.listen(0, () => {
-      const { port } = server.address() as net.AddressInfo;
-      server.close(() => resolve(port));
+      const address = server.address();
+      if (address === null || typeof address === 'string') {
+        reject(new Error('The server did not report a port'));
+        return;
+      }
+      server.close(() => resolve(address.port));
     });
   });
 }
@@ -32,7 +36,7 @@ export async function startDb(options: {
     password: 'chords',
     port: options.port,
     persistent: options.persistent,
-    onLog: (message) => logs.push(String(message)),
+    onLog: (message) => logs.push(message),
     onError: (message) => logs.push(String(message)),
   });
   try {

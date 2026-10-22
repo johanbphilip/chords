@@ -15,7 +15,10 @@ export class SessionController {
   }
 
   @Patch('me')
-  async rename(@Req() request: AuthedRequest, @Body(new ZodPipe(renameSchema)) body: { name: string }) {
+  async rename(
+    @Req() request: AuthedRequest,
+    @Body(new ZodPipe(renameSchema)) body: { name: string },
+  ) {
     await this.auth.renameMember(request.headers, body.name);
     return {};
   }

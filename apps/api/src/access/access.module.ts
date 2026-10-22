@@ -6,7 +6,10 @@ import { InvitesController } from './invites/invites.controller.js';
 import { InvitesService } from './invites/invites.service.js';
 import { AdminMembersController, MembersController } from './members/members.controller.js';
 import { MembersService } from './members/members.service.js';
-import { AccessRequestsController, RequestAccessController } from './requests/access-requests.controller.js';
+import {
+  AccessRequestsController,
+  RequestAccessController,
+} from './requests/access-requests.controller.js';
 import { AccessRequestsService } from './requests/access-requests.service.js';
 import { AuthService } from './session/auth.service.js';
 import { BetterAuthMiddleware } from './session/better-auth.middleware.js';
@@ -27,7 +30,13 @@ import { SessionController } from './session/session.controller.js';
     AdminMembersController,
     MembersController,
   ],
-  providers: [AuthService, ApprovedEmailsService, InvitesService, AccessRequestsService, MembersService],
+  providers: [
+    AuthService,
+    ApprovedEmailsService,
+    InvitesService,
+    AccessRequestsService,
+    MembersService,
+  ],
   exports: [AuthService],
 })
 export class AccessModule implements NestModule {

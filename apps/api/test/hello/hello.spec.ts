@@ -1,5 +1,5 @@
-import "reflect-metadata";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import 'reflect-metadata';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Test } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';

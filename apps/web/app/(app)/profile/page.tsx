@@ -39,7 +39,14 @@ function RenameForm({ initialName }: { initialName: string }) {
     <form {...formProps(form)} className="flex flex-col gap-2">
       <div className="flex items-start gap-2">
         <form.AppField name="name">
-          {(field) => <field.TextField label="Display name" hideLabel className="flex-1" autoComplete="name" />}
+          {(field) => (
+            <field.TextField
+              label="Display name"
+              hideLabel
+              className="flex-1"
+              autoComplete="name"
+            />
+          )}
         </form.AppField>
         <form.AppForm>
           <form.SubmitButton pendingLabel="Saving…">Save</form.SubmitButton>
@@ -53,8 +60,18 @@ function RenameForm({ initialName }: { initialName: string }) {
 
 function ChangePasswordForm() {
   const change = useMutation({
-    mutationFn: async ({ currentPassword, newPassword }: { currentPassword: string; newPassword: string }) => {
-      const { error } = await authClient.changePassword({ currentPassword, newPassword, revokeOtherSessions: true });
+    mutationFn: async ({
+      currentPassword,
+      newPassword,
+    }: {
+      currentPassword: string;
+      newPassword: string;
+    }) => {
+      const { error } = await authClient.changePassword({
+        currentPassword,
+        newPassword,
+        revokeOtherSessions: true,
+      });
       if (error) throw new Error(error.message ?? 'Could not change the password');
     },
   });
@@ -63,7 +80,10 @@ function ChangePasswordForm() {
     defaultValues: { currentPassword: '', newPassword: '' },
     validators: { onChange: changePasswordSchema, onSubmit: changePasswordSchema },
     onSubmit: async ({ value, formApi }) => {
-      const changed = await change.mutateAsync(changePasswordSchema.parse(value)).then(() => true, () => false);
+      const changed = await change.mutateAsync(changePasswordSchema.parse(value)).then(
+        () => true,
+        () => false,
+      );
       if (changed) formApi.reset();
     },
   });
@@ -73,13 +93,30 @@ function ChangePasswordForm() {
       <FieldGroup>
         <h2 className="font-medium">Change password</h2>
         <form.AppField name="currentPassword">
-          {(field) => <field.TextField label="Current password" type="password" autoComplete="current-password" />}
+          {(field) => (
+            <field.TextField
+              label="Current password"
+              type="password"
+              autoComplete="current-password"
+            />
+          )}
         </form.AppField>
         <form.AppField name="newPassword">
-          {(field) => <field.TextField label="New password" type="password" autoComplete="new-password" description="At least 8 characters." />}
+          {(field) => (
+            <field.TextField
+              label="New password"
+              type="password"
+              autoComplete="new-password"
+              description="At least 8 characters."
+            />
+          )}
         </form.AppField>
         <FormError error={change.error} />
-        {change.isSuccess && <p className="text-sm text-muted-foreground">Password changed. Your other devices are signed out.</p>}
+        {change.isSuccess && (
+          <p className="text-sm text-muted-foreground">
+            Password changed. Your other devices are signed out.
+          </p>
+        )}
         <form.AppForm>
           <form.SubmitButton pendingLabel="Changing…">Change password</form.SubmitButton>
         </form.AppForm>

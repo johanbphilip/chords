@@ -27,11 +27,13 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (!res.ok) {
-    const payload = (await res.json().catch(() => null)) as ({ message?: string | string[] } & Record<string, unknown>) | null;
+    const payload: ({ message?: string | string[] } & Record<string, unknown>) | null = await res
+      .json()
+      .catch(() => null);
     const message = [payload?.message].flat()[0];
     throw new ApiError(res.status, message ?? `API error ${res.status}`, payload);
   }
-  return (await res.json()) as T;
+  return res.json();
 }
 
 export const apiGet = <T>(path: string) => request<T>('GET', path);

@@ -14,7 +14,9 @@ export const MAX_LYRIC_LENGTH = 1_000;
 
 /** Blank means "none": a form leaves a detail empty, a client leaves it out, and nothing is stored. */
 const blankToNull = (value: unknown) =>
-  value === undefined || value === null || (typeof value === 'string' && value.trim() === '') ? null : value;
+  value === undefined || value === null || (typeof value === 'string' && value.trim() === '')
+    ? null
+    : value;
 
 const KEY_MESSAGE = 'Key must be a Key such as G, Bb or F#m';
 const TEMPO_MESSAGE = `Tempo must be a whole number from ${TEMPO_MIN} to ${TEMPO_MAX}`;
@@ -22,20 +24,27 @@ const TIME_SIGNATURE_MESSAGE = 'Time signature must be like 4/4 or 6/8';
 const TITLE_MESSAGE = 'A Song needs a title';
 
 export const titleSchema = z.string(TITLE_MESSAGE).trim().min(1, TITLE_MESSAGE);
-export const artistSchema = z.preprocess((value) => value ?? undefined, z.string('Artist must be text').trim().default(''));
-export const keySchema = z.preprocess(blankToNull, z.string(KEY_MESSAGE).trim().regex(KEY_PATTERN, KEY_MESSAGE).nullable());
+export const artistSchema = z.preprocess(
+  (value) => value ?? undefined,
+  z.string('Artist must be text').trim().default(''),
+);
+export const keySchema = z.preprocess(
+  blankToNull,
+  z.string(KEY_MESSAGE).trim().regex(KEY_PATTERN, KEY_MESSAGE).nullable(),
+);
 export const timeSignatureSchema = z.preprocess(
   blankToNull,
-  z.string(TIME_SIGNATURE_MESSAGE).trim().regex(TIME_SIGNATURE_PATTERN, TIME_SIGNATURE_MESSAGE).nullable(),
+  z
+    .string(TIME_SIGNATURE_MESSAGE)
+    .trim()
+    .regex(TIME_SIGNATURE_PATTERN, TIME_SIGNATURE_MESSAGE)
+    .nullable(),
 );
 /** A number, or the digits of one as typed into a form. Anything else is refused, never quietly dropped. */
-export const tempoSchema = z.preprocess(
-  (value) => {
-    const given = blankToNull(value);
-    return typeof given === 'string' && /^\d+$/.test(given.trim()) ? Number(given) : given;
-  },
-  z.number(TEMPO_MESSAGE).int(TEMPO_MESSAGE).min(TEMPO_MIN, TEMPO_MESSAGE).max(TEMPO_MAX, TEMPO_MESSAGE).nullable(),
-);
+export const tempoSchema = z.preprocess((value) => {
+  const given = blankToNull(value);
+  return typeof given === 'string' && /^\d+$/.test(given.trim()) ? Number(given) : given;
+}, z.number(TEMPO_MESSAGE).int(TEMPO_MESSAGE).min(TEMPO_MIN, TEMPO_MESSAGE).max(TEMPO_MAX, TEMPO_MESSAGE).nullable());
 
 /** A Song's details. Works on what a form holds (strings) and on what the API receives (numbers, nulls). */
 export const songDetailsSchema = z.object({
@@ -46,7 +55,8 @@ export const songDetailsSchema = z.object({
   timeSignature: timeSignatureSchema,
 });
 
-const UNNAMED_MESSAGE = 'Every Section needs a name. Name the unplaced text, or merge it into a Section.';
+const UNNAMED_MESSAGE =
+  'Every Section needs a name. Name the unplaced text, or merge it into a Section.';
 
 const placedChordSchema = z.object({
   chord: z.string('A chord is not a chord').refine(isChord, 'A chord is not a chord'),
@@ -75,16 +85,21 @@ export const chordSheetSchema = z
   .object({ sections: z.array(sheetSectionSchema), order: z.array(z.string().trim()) })
   .superRefine((sheet, context) => {
     const issue = (message: string) => context.addIssue({ code: 'custom', message });
-    if (sheet.sections.reduce((count, section) => count + section.lines.length, 0) > MAX_LINES) issue('Too many lines');
+    if (sheet.sections.reduce((count, section) => count + section.lines.length, 0) > MAX_LINES)
+      issue('Too many lines');
     const names = sheet.sections.map((section) => section.name);
-    for (const name of new Set(names.filter((name, i) => names.indexOf(name) !== i))) {
+    for (const name of new Set(
+      names.filter((sectionName, i) => names.indexOf(sectionName) !== i),
+    )) {
       issue(`Two Sections are named "${name}". Rename one, or merge them.`);
     }
-    if (sheet.order.some((name) => !names.includes(name))) issue('The order names a Section that does not exist');
+    if (sheet.order.some((name) => !names.includes(name)))
+      issue('The order names a Section that does not exist');
     for (const name of new Set(names)) {
-      if (!sheet.order.includes(name)) issue(`"${name}" is not in the order, so it would be lost. Add it.`);
+      if (!sheet.order.includes(name))
+        issue(`"${name}" is not in the order, so it would be lost. Add it.`);
     }
-  }) satisfies z.ZodType<ChordSheet, unknown>;
+  }) satisfies z.ZodType<ChordSheet>;
 
 /** Details plus content: typed `text` to parse, or `content` already structured, never both. */
 const songBodySchema = songDetailsSchema
@@ -92,7 +107,10 @@ const songBodySchema = songDetailsSchema
     text: z.string('Text must be text').max(MAX_TEXT_LENGTH, 'Text is too long').nullish(),
     content: chordSheetSchema.nullish(),
   })
-  .refine((body) => body.text == null || body.content == null, 'Send either text or content, not both');
+  .refine(
+    (body) => body.text == null || body.content == null,
+    'Send either text or content, not both',
+  );
 
 export interface SongInput {
   title: string;
@@ -111,7 +129,10 @@ export const createSongSchema = songBodySchema.transform(toSongInput);
 
 /** An edit replaces the whole Song, so leaving out both `text` and `content` would silently erase it. An empty `text` clears it on purpose. */
 export const replaceSongSchema = songBodySchema
-  .refine((body) => body.text != null || body.content != null, 'Send the whole Song: its text (or content) as well as its details')
+  .refine(
+    (body) => body.text != null || body.content != null,
+    'Send the whole Song: its text (or content) as well as its details',
+  )
   .transform(toSongInput);
 
 export const parseSongTextSchema = z.object({

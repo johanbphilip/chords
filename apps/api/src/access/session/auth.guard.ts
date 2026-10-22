@@ -38,8 +38,12 @@ export class AuthGuard implements CanActivate {
     if (!member) throw new UnauthorizedException('Sign in required');
     request.member = member;
 
-    const permission = this.reflector.getAllAndOverride<Permission | undefined>(PERMISSION, targets);
-    if (permission && !(await this.auth.can(member.role, permission))) throw new ForbiddenException('Admins only');
+    const permission = this.reflector.getAllAndOverride<Permission | undefined>(
+      PERMISSION,
+      targets,
+    );
+    if (permission && !(await this.auth.can(member.role, permission)))
+      throw new ForbiddenException('Admins only');
     return true;
   }
 }

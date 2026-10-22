@@ -8,18 +8,26 @@ describe('revocation and roles', () => {
   let admin: string;
   const http = () => request(app.getHttpServer());
   const enc = encodeURIComponent;
-  const revoke = (token: string, email: string) => http().post(`/admin/members/${enc(email)}/revoke`).set(bearer(token));
-  const restore = (token: string, email: string) => http().post(`/admin/members/${enc(email)}/restore`).set(bearer(token));
+  const revoke = (token: string, email: string) =>
+    http()
+      .post(`/admin/members/${enc(email)}/revoke`)
+      .set(bearer(token));
+  const restore = (token: string, email: string) =>
+    http()
+      .post(`/admin/members/${enc(email)}/restore`)
+      .set(bearer(token));
   const setRole = (token: string, email: string, role: string) =>
-    http().put(`/admin/members/${enc(email)}/role`).set(bearer(token)).send({ role });
-  const people = async () =>
-    (await http().get('/admin/approved-emails').set(bearer(admin)).expect(200)).body as {
-      email: string;
-      role: string;
-      name: string | null;
-      status: string;
-    }[];
-  const sameAdminCount = async () => (await people()).filter((p) => p.role === 'admin' && p.status === 'active').length;
+    http()
+      .put(`/admin/members/${enc(email)}/role`)
+      .set(bearer(token))
+      .send({ role });
+  const people = async () => {
+    const res = await http().get('/admin/approved-emails').set(bearer(admin)).expect(200);
+    const rows: { email: string; role: string; name: string | null; status: string }[] = res.body;
+    return rows;
+  };
+  const sameAdminCount = async () =>
+    (await people()).filter((p) => p.role === 'admin' && p.status === 'active').length;
 
   beforeAll(async () => {
     app = await createApp();
@@ -47,7 +55,10 @@ describe('revocation and roles', () => {
       await revoke(admin, member.email).expect(201);
       await http().get('/auth/me').set(bearer(member.token)).expect(401);
       await http().get('/auth/me').set(bearer(second)).expect(401);
-      await http().post('/api/auth/sign-in/email').send({ email: member.email, password: member.password }).expect(403);
+      await http()
+        .post('/api/auth/sign-in/email')
+        .send({ email: member.email, password: member.password })
+        .expect(403);
     });
 
     it('keeps their name in the list of people and marks them revoked', async () => {
@@ -78,14 +89,20 @@ describe('revocation and roles', () => {
   describe('removing an approved email', () => {
     it('is refused for someone who has joined: revoke them instead', async () => {
       const member = await joinAs(app, admin);
-      await http().delete(`/admin/approved-emails/${enc(member.email)}`).set(bearer(admin)).expect(409);
+      await http()
+        .delete(`/admin/approved-emails/${enc(member.email)}`)
+        .set(bearer(admin))
+        .expect(409);
       await http().get('/auth/me').set(bearer(member.token)).expect(200);
     });
 
     it('still works for someone who never joined', async () => {
       const email = uniqueEmail();
       await approve(app, admin, email);
-      await http().delete(`/admin/approved-emails/${enc(email)}`).set(bearer(admin)).expect(200);
+      await http()
+        .delete(`/admin/approved-emails/${enc(email)}`)
+        .set(bearer(admin))
+        .expect(200);
       expect((await people()).some((p) => p.email === email)).toBe(false);
     });
   });
@@ -127,16 +144,22 @@ describe('revocation and roles', () => {
       await restore(member.token, other.email).expect(403);
       await setRole(member.token, other.email, 'admin').expect(403);
       await setRole(member.token, member.email, 'admin').expect(403);
-      await http().post(`/admin/members/${enc(other.email)}/revoke`).expect(401);
+      await http()
+        .post(`/admin/members/${enc(other.email)}/revoke`)
+        .expect(401);
     });
   });
 
   describe('who can see whom', () => {
-    it('shows Members each other\'s display names but never email addresses', async () => {
+    it("shows Members each other's display names but never email addresses", async () => {
       const member = await joinAs(app, admin, { name: 'Visible Vee' });
       const viewer = await joinAs(app, admin);
       const res = await http().get('/members').set(bearer(viewer.token)).expect(200);
-      expect(res.body).toContainEqual({ id: expect.any(String), name: 'Visible Vee', revoked: false });
+      expect(res.body).toContainEqual({
+        id: expect.any(String),
+        name: 'Visible Vee',
+        revoked: false,
+      });
       expect(JSON.stringify(res.body)).not.toContain(member.email);
       expect(JSON.stringify(res.body)).not.toContain('@');
     });

@@ -39,7 +39,14 @@ export class SongsService {
       this.db.query<SongRow>(
         `INSERT INTO songs (title, artist, musical_key, tempo, time_signature, content)
          VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-        [body.title, body.artist, body.key, body.tempo, body.timeSignature, JSON.stringify(body.content)],
+        [
+          body.title,
+          body.artist,
+          body.key,
+          body.tempo,
+          body.timeSignature,
+          JSON.stringify(body.content),
+        ],
       ),
       body,
     );
@@ -52,7 +59,15 @@ export class SongsService {
       this.db.query<SongRow>(
         `UPDATE songs SET title = $2, artist = $3, musical_key = $4, tempo = $5, time_signature = $6, content = $7,
            updated_at = now() WHERE id = $1 RETURNING *`,
-        [id, body.title, body.artist, body.key, body.tempo, body.timeSignature, JSON.stringify(body.content)],
+        [
+          id,
+          body.title,
+          body.artist,
+          body.key,
+          body.tempo,
+          body.timeSignature,
+          JSON.stringify(body.content),
+        ],
       ),
       body,
     );
@@ -64,7 +79,8 @@ export class SongsService {
     try {
       [row] = await write;
     } catch (error) {
-      if ((error as { code?: string }).code !== UNIQUE_VIOLATION) throw error;
+      if (!(error instanceof Error && 'code' in error && error.code === UNIQUE_VIOLATION))
+        throw error;
       const [existing] = await this.db.query<{ id: string }>(
         `SELECT id FROM songs WHERE title_normalised = ${normalised('$1')} AND artist_normalised = ${normalised('$2')}`,
         [body.title, body.artist],
@@ -89,8 +105,15 @@ export class SongsService {
 
   /** Every Song, alphabetical. The Songs page (ticket 10) adds filters; this is what reading needs now. */
   async list() {
-    const rows = await this.db.query<SongRow>('SELECT * FROM songs ORDER BY title_normalised, artist_normalised');
-    return rows.map(({ id, title, artist, musical_key }) => ({ id, title, artist, key: musical_key }));
+    const rows = await this.db.query<SongRow>(
+      'SELECT * FROM songs ORDER BY title_normalised, artist_normalised',
+    );
+    return rows.map(({ id, title, artist, musical_key }) => ({
+      id,
+      title,
+      artist,
+      key: musical_key,
+    }));
   }
 
   async get(id: string) {

@@ -9,7 +9,9 @@ export function ChordLine({ line }: { line: SheetLine }) {
         <span key={w} className="inline-flex align-bottom whitespace-pre">
           {word.map((piece, p) => (
             <span key={p} className="inline-flex flex-col">
-              <span className="min-h-[1.25em] pr-[0.4em] font-semibold text-primary">{piece.chord ?? ' '}</span>
+              <span className="min-h-[1.25em] pr-[0.4em] font-semibold text-primary">
+                {piece.chord ?? ' '}
+              </span>
               <span>{piece.text === '' ? ' ' : piece.text}</span>
             </span>
           ))}
@@ -27,7 +29,9 @@ export function ChordSheet({ content }: { content: ChordSheetContent }) {
       {content.order.map((name, i) => (
         <section key={i} className="flex flex-col gap-1">
           {name && <h2 className="text-sm font-medium text-muted-foreground">{name}</h2>}
-          {byName.get(name)?.lines.map((line, l) => <ChordLine key={l} line={line} />)}
+          {byName.get(name)?.lines.map((line, l) => (
+            <ChordLine key={l} line={line} />
+          ))}
         </section>
       ))}
     </div>

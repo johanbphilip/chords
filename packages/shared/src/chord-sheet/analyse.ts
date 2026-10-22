@@ -23,8 +23,9 @@ const WORD_CHORDS = new Set(['A', 'Am']);
 export function findAmbiguousLines({ sections }: ChordSheet): { section: string; line: number }[] {
   return sections.flatMap((section) =>
     section.lines.flatMap((line, index) =>
-      line.chords.length > 0 && line.chords.every(({ chord }) => WORD_CHORDS.has(chord)) ? [{ section: section.name, line: index }] : [],
+      line.chords.length > 0 && line.chords.every(({ chord }) => WORD_CHORDS.has(chord))
+        ? [{ section: section.name, line: index }]
+        : [],
     ),
   );
 }
-

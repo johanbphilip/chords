@@ -1,5 +1,12 @@
 import { INVALID_INVITE_MESSAGE, normaliseEmail } from '@chords/shared';
-import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { createHash, randomBytes } from 'node:crypto';
 import { Database } from '../../infrastructure/database/database.js';
 import { EmailService } from '../../infrastructure/email/email.service.js';
@@ -10,7 +17,9 @@ import { webLink } from '../session/better-auth.js';
 const DEFAULT_TTL_SECONDS = 7 * 24 * 60 * 60;
 const sha256 = (value: string) => createHash('sha256').update(value).digest('hex');
 const lifetime = (seconds: number) =>
-  seconds >= 86_400 ? `${Math.round(seconds / 86_400)} days` : `${Math.max(1, Math.round(seconds / 60))} minutes`;
+  seconds >= 86_400
+    ? `${Math.round(seconds / 86_400)} days`
+    : `${Math.max(1, Math.round(seconds / 60))} minutes`;
 const ttlSeconds = () => Number(process.env.INVITE_TTL_SECONDS ?? DEFAULT_TTL_SECONDS);
 
 @Injectable()
@@ -32,8 +41,10 @@ export class InvitesService {
   /** A fresh link for an approved email that has not joined yet. Any earlier link stops working. */
   async reissue(email: string): Promise<{ email: string; inviteUrl: string }> {
     const address = normaliseEmail(email);
-    if (!(await this.approved.isApproved(address))) throw new NotFoundException('That email has not been approved');
-    if (await this.approved.isRegistered(address)) throw new ConflictException('That person has already joined');
+    if (!(await this.approved.isApproved(address)))
+      throw new NotFoundException('That email has not been approved');
+    if (await this.approved.isRegistered(address))
+      throw new ConflictException('That person has already joined');
     return { email: address, inviteUrl: await this.issueAndEmail(address) };
   }
 
@@ -56,14 +67,17 @@ export class InvitesService {
     } catch (error) {
       // Give the link back so the person can retry, but keep the cause: it may be an outage, not a bad link.
       console.error('Could not create the account for an invite', error);
-      await this.db.query('UPDATE invites SET used_at = NULL WHERE token_hash = $1', [sha256(token)]);
+      await this.db.query('UPDATE invites SET used_at = NULL WHERE token_hash = $1', [
+        sha256(token),
+      ]);
       throw refused;
     }
   }
 
   /** Creates the account for an approved email. Throws if it is not approved or already exists. */
   private async createMember(email: string, name: string, password: string): Promise<Member> {
-    if (!(await this.approved.isApproved(email))) throw new ForbiddenException('This email has not been approved');
+    if (!(await this.approved.isApproved(email)))
+      throw new ForbiddenException('This email has not been approved');
     await this.auth.auth.api.createUser({ body: { email, password, name, role: 'member' } });
     return { email, role: 'member', name };
   }

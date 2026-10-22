@@ -1,0 +1,15 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "singleQuote": true,
+  "semi": true,
+  "printWidth": 100,
+  "ignorePatterns": [
+    "pnpm-lock.yaml",
+    "apps/web/components/ui/**",
+    "apps/api/migrations/**",
+    ".scratch/**",
+    ".pgdata/**",
+    "**/.next/**",
+    "**/next-env.d.ts"
+  ]
+}

@@ -15,7 +15,9 @@ export class EmailService {
   async send(message: EmailMessage): Promise<void> {
     const key = process.env.RESEND_API_KEY;
     if (!key) {
-      console.log(`[email not sent: RESEND_API_KEY is not set] to ${message.to}: ${message.subject}\n${message.text}`);
+      console.log(
+        `[email not sent: RESEND_API_KEY is not set] to ${message.to}: ${message.subject}\n${message.text}`,
+      );
       return;
     }
     // A failed email must not fail the request that triggered it, or reset requests would reveal who is registered.
@@ -30,7 +32,10 @@ export class EmailService {
           text: message.text,
         }),
       });
-      if (!res.ok) console.error(`Resend refused an email to ${message.to}: ${res.status} ${await res.text()}`);
+      if (!res.ok)
+        console.error(
+          `Resend refused an email to ${message.to}: ${res.status} ${await res.text()}`,
+        );
     } catch (error) {
       console.error(`Could not send an email to ${message.to}`, error);
     }

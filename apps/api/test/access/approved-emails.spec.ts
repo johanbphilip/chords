@@ -25,13 +25,19 @@ describe('approved emails and roles', () => {
   it('treats email case and surrounding spaces as the same address', async () => {
     const email = uniqueEmail('Mixed');
     const token = await approve(app, admin, `  ${email.toUpperCase()} `);
-    const accepted = await http().post('/auth/accept-invite').send({ token, name: 'Mixed', password: 'correct horse' }).expect(201);
+    const accepted = await http()
+      .post('/auth/accept-invite')
+      .send({ token, name: 'Mixed', password: 'correct horse' })
+      .expect(201);
     expect(accepted.body.member.email).toBe(email.toLowerCase());
   });
 
   it('refuses an unapproved email: there is no way to sign in or register', async () => {
     const email = uniqueEmail('stranger');
-    await http().post('/api/auth/sign-in/email').send({ email, password: 'correct horse' }).expect(401);
+    await http()
+      .post('/api/auth/sign-in/email')
+      .send({ email, password: 'correct horse' })
+      .expect(401);
     await http().post('/auth/register').send({ email, password: 'correct horse' }).expect(404);
   });
 
@@ -42,30 +48,54 @@ describe('approved emails and roles', () => {
     const joined = await joinAs(app, admin, { name: 'Joined' });
     const list = await http().get('/admin/approved-emails').set(bearer(admin)).expect(200);
     const row = (email: string) => list.body.filter((p: { email: string }) => p.email === email);
-    expect(row(waiting)).toEqual([{ email: waiting, role: 'member', name: null, status: 'invited' }]);
-    expect(row(joined.email)).toEqual([{ email: joined.email, role: 'member', name: 'Joined', status: 'active' }]);
+    expect(row(waiting)).toEqual([
+      { email: waiting, role: 'member', name: null, status: 'invited' },
+    ]);
+    expect(row(joined.email)).toEqual([
+      { email: joined.email, role: 'member', name: 'Joined', status: 'active' },
+    ]);
   });
 
   it('rejects something that is not an email address', async () => {
-    await http().post('/admin/approved-emails').set(bearer(admin)).send({ email: 'not-an-email' }).expect(400);
+    await http()
+      .post('/admin/approved-emails')
+      .set(bearer(admin))
+      .send({ email: 'not-an-email' })
+      .expect(400);
   });
 
   it('removing an email that never joined voids its invite', async () => {
     const email = uniqueEmail();
     const token = await approve(app, admin, email);
-    await http().delete(`/admin/approved-emails/${encodeURIComponent(email)}`).set(bearer(admin)).expect(200);
-    await http().post('/auth/accept-invite').send({ token, name: 'Late', password: 'correct horse' }).expect(400);
+    await http()
+      .delete(`/admin/approved-emails/${encodeURIComponent(email)}`)
+      .set(bearer(admin))
+      .expect(200);
+    await http()
+      .post('/auth/accept-invite')
+      .send({ token, name: 'Late', password: 'correct horse' })
+      .expect(400);
   });
 
   it('will not remove the Admin', async () => {
-    await http().delete(`/admin/approved-emails/${encodeURIComponent(ADMIN.email)}`).set(bearer(admin)).expect(409);
+    await http()
+      .delete(`/admin/approved-emails/${encodeURIComponent(ADMIN.email)}`)
+      .set(bearer(admin))
+      .expect(409);
   });
 
   it('refuses a Member who tries an Admin action', async () => {
     const member = await joinAs(app, admin);
     await http().get('/admin/approved-emails').set(bearer(member.token)).expect(403);
-    await http().post('/admin/approved-emails').set(bearer(member.token)).send({ email: uniqueEmail() }).expect(403);
-    await http().delete(`/admin/approved-emails/${encodeURIComponent(member.email)}`).set(bearer(member.token)).expect(403);
+    await http()
+      .post('/admin/approved-emails')
+      .set(bearer(member.token))
+      .send({ email: uniqueEmail() })
+      .expect(403);
+    await http()
+      .delete(`/admin/approved-emails/${encodeURIComponent(member.email)}`)
+      .set(bearer(member.token))
+      .expect(403);
   });
 
   it('refuses a signed-out visitor any Admin action', async () => {

@@ -11,9 +11,14 @@ import {
 } from '../src';
 
 /** The first message an invalid value produces, or null when it is valid. */
-const refusal = (schema: { safeParse: (value: unknown) => { success: boolean; error?: { issues: { message: string }[] } } }, value: unknown) => {
+const refusal = (
+  schema: {
+    safeParse: (value: unknown) => { success: boolean; error?: { issues: { message: string }[] } };
+  },
+  value: unknown,
+) => {
   const result = schema.safeParse(value);
-  return result.success ? null : result.error!.issues[0]!.message;
+  return result.success ? null : result.error!.issues[0].message;
 };
 
 describe('people', () => {
@@ -24,15 +29,26 @@ describe('people', () => {
   });
 
   it('asks for a display name of up to 100 characters, and a password of at least 8', () => {
-    expect(requestAccessSchema.parse({ email: 'a@b.co', name: '  Ada ' })).toEqual({ email: 'a@b.co', name: 'Ada' });
+    expect(requestAccessSchema.parse({ email: 'a@b.co', name: '  Ada ' })).toEqual({
+      email: 'a@b.co',
+      name: 'Ada',
+    });
     expect(refusal(requestAccessSchema, { email: 'a@b.co', name: '   ' })).toMatch(/display name/);
-    expect(refusal(requestAccessSchema, { email: 'a@b.co', name: 'x'.repeat(101) })).toMatch(/display name/);
-    expect(refusal(acceptInviteSchema, { token: 't', name: 'Ada', password: 'short' })).toBe('Password must be at least 8 characters');
+    expect(refusal(requestAccessSchema, { email: 'a@b.co', name: 'x'.repeat(101) })).toMatch(
+      /display name/,
+    );
+    expect(refusal(acceptInviteSchema, { token: 't', name: 'Ada', password: 'short' })).toBe(
+      'Password must be at least 8 characters',
+    );
   });
 
   it('answers a missing or non-text invite token like any other bad link', () => {
-    expect(refusal(acceptInviteSchema, { name: 'Ada', password: 'long enough' })).toBe('This invite link is invalid or has expired');
-    expect(refusal(acceptInviteSchema, { token: 7, name: 'Ada', password: 'long enough' })).toBe('This invite link is invalid or has expired');
+    expect(refusal(acceptInviteSchema, { name: 'Ada', password: 'long enough' })).toBe(
+      'This invite link is invalid or has expired',
+    );
+    expect(refusal(acceptInviteSchema, { token: 7, name: 'Ada', password: 'long enough' })).toBe(
+      'This invite link is invalid or has expired',
+    );
   });
 });
 
@@ -48,7 +64,15 @@ describe('Song details', () => {
   });
 
   it('reads blank form fields as none and tempo digits as a number', () => {
-    expect(songDetailsSchema.parse({ title: 'x', artist: ' John ', key: ' ', tempo: ' 72 ', timeSignature: '' })).toEqual({
+    expect(
+      songDetailsSchema.parse({
+        title: 'x',
+        artist: ' John ',
+        key: ' ',
+        tempo: ' 72 ',
+        timeSignature: '',
+      }),
+    ).toEqual({
       title: 'x',
       artist: 'John',
       key: null,
@@ -79,7 +103,10 @@ describe('Song details', () => {
 });
 
 describe('reviewed content', () => {
-  const verse = { name: 'Verse', lines: [{ lyric: 'Amazing grace', chords: [{ chord: 'G', at: 0 }] }] };
+  const verse = {
+    name: 'Verse',
+    lines: [{ lyric: 'Amazing grace', chords: [{ chord: 'G', at: 0 }] }],
+  };
   const chorus = { name: 'Chorus', lines: [{ lyric: 'How sweet', chords: [] }] };
 
   it('accepts Sections and an order that repeats one', () => {
@@ -88,23 +115,69 @@ describe('reviewed content', () => {
   });
 
   it('tidies spaces around Section names, in the sections and the order alike', () => {
-    expect(chordSheetSchema.parse({ sections: [{ ...verse, name: ' Verse ' }], order: ['Verse '] })).toEqual({ sections: [verse], order: ['Verse'] });
+    expect(
+      chordSheetSchema.parse({ sections: [{ ...verse, name: ' Verse ' }], order: ['Verse '] }),
+    ).toEqual({ sections: [verse], order: ['Verse'] });
   });
 
   it('drops fields it does not know, such as a review flag on a line', () => {
-    const flagged = { sections: [{ ...verse, lines: [{ ...verse.lines[0], ambiguous: true }] }], order: ['Verse'] };
+    const flagged = {
+      sections: [{ ...verse, lines: [{ ...verse.lines[0], ambiguous: true }] }],
+      order: ['Verse'],
+    };
     expect(chordSheetSchema.parse(flagged)).toEqual({ sections: [verse], order: ['Verse'] });
   });
 
   it.each([
-    ['an unnamed Section', { sections: [{ ...verse, name: '' }], order: [''] }, expect.stringMatching(/Every Section needs a name/)],
-    ['two Sections with one name', { sections: [verse, verse], order: ['Verse'] }, 'Two Sections are named "Verse". Rename one, or merge them.'],
-    ['an order naming a missing Section', { sections: [verse], order: ['Verse', 'Bridge'] }, 'The order names a Section that does not exist'],
-    ['a Section left out of the order', { sections: [verse, chorus], order: ['Verse'] }, '"Chorus" is not in the order, so it would be lost. Add it.'],
-    ['a chord that is not a chord', { sections: [{ ...verse, lines: [{ lyric: 'x', chords: [{ chord: 'H', at: 0 }] }] }], order: ['Verse'] }, 'A chord is not a chord'],
-    ['a negative position', { sections: [{ ...verse, lines: [{ lyric: 'x', chords: [{ chord: 'G', at: -1 }] }] }], order: ['Verse'] }, 'A chord needs a position in the lyric'],
-    ['a fractional position', { sections: [{ ...verse, lines: [{ lyric: 'x', chords: [{ chord: 'G', at: 1.5 }] }] }], order: ['Verse'] }, 'A chord needs a position in the lyric'],
-    ['a lyric that is not text', { sections: [{ ...verse, lines: [{ lyric: 5, chords: [] }] }], order: ['Verse'] }, 'Each line needs a lyric'],
+    [
+      'an unnamed Section',
+      { sections: [{ ...verse, name: '' }], order: [''] },
+      expect.stringMatching(/Every Section needs a name/),
+    ],
+    [
+      'two Sections with one name',
+      { sections: [verse, verse], order: ['Verse'] },
+      'Two Sections are named "Verse". Rename one, or merge them.',
+    ],
+    [
+      'an order naming a missing Section',
+      { sections: [verse], order: ['Verse', 'Bridge'] },
+      'The order names a Section that does not exist',
+    ],
+    [
+      'a Section left out of the order',
+      { sections: [verse, chorus], order: ['Verse'] },
+      '"Chorus" is not in the order, so it would be lost. Add it.',
+    ],
+    [
+      'a chord that is not a chord',
+      {
+        sections: [{ ...verse, lines: [{ lyric: 'x', chords: [{ chord: 'H', at: 0 }] }] }],
+        order: ['Verse'],
+      },
+      'A chord is not a chord',
+    ],
+    [
+      'a negative position',
+      {
+        sections: [{ ...verse, lines: [{ lyric: 'x', chords: [{ chord: 'G', at: -1 }] }] }],
+        order: ['Verse'],
+      },
+      'A chord needs a position in the lyric',
+    ],
+    [
+      'a fractional position',
+      {
+        sections: [{ ...verse, lines: [{ lyric: 'x', chords: [{ chord: 'G', at: 1.5 }] }] }],
+        order: ['Verse'],
+      },
+      'A chord needs a position in the lyric',
+    ],
+    [
+      'a lyric that is not text',
+      { sections: [{ ...verse, lines: [{ lyric: 5, chords: [] }] }], order: ['Verse'] },
+      'Each line needs a lyric',
+    ],
     ['sections that are not a list', { sections: 'Verse', order: [] }, expect.any(String)],
     ['content that is not an object', 'Verse', expect.any(String)],
   ])('refuses %s', (_name, content, message) => {
@@ -113,11 +186,17 @@ describe('reviewed content', () => {
 });
 
 describe('a Song as sent to the API', () => {
-  const content = { sections: [{ name: 'Verse', lines: [{ lyric: 'Hi', chords: [] }] }], order: ['Verse'] };
+  const content = {
+    sections: [{ name: 'Verse', lines: [{ lyric: 'Hi', chords: [] }] }],
+    order: ['Verse'],
+  };
 
   it('parses typed text into the stored form', () => {
     const song = createSongSchema.parse({ title: 'x', text: '[Verse]\nG\nHi' });
-    expect(song.content).toEqual({ sections: [{ name: 'Verse', lines: [{ lyric: 'Hi', chords: [{ chord: 'G', at: 0 }] }] }], order: ['Verse'] });
+    expect(song.content).toEqual({
+      sections: [{ name: 'Verse', lines: [{ lyric: 'Hi', chords: [{ chord: 'G', at: 0 }] }] }],
+      order: ['Verse'],
+    });
   });
 
   it('takes structured content as it is, and an empty Song when neither is sent', () => {
@@ -126,12 +205,17 @@ describe('a Song as sent to the API', () => {
   });
 
   it('refuses text and content together, since one would silently win', () => {
-    expect(refusal(createSongSchema, { title: 'x', text: 'G\nhi', content })).toBe('Send either text or content, not both');
+    expect(refusal(createSongSchema, { title: 'x', text: 'G\nhi', content })).toBe(
+      'Send either text or content, not both',
+    );
   });
 
   it('refuses an edit with neither, but allows empty text to clear the Song', () => {
     expect(refusal(replaceSongSchema, { title: 'x' })).toMatch(/Send the whole Song/);
-    expect(replaceSongSchema.parse({ title: 'x', text: '' }).content).toEqual({ sections: [], order: [] });
+    expect(replaceSongSchema.parse({ title: 'x', text: '' }).content).toEqual({
+      sections: [],
+      order: [],
+    });
   });
 
   it('needs some text to parse for review, and not too much', () => {

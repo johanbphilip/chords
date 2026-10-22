@@ -6,7 +6,13 @@ import type { Pool } from 'pg';
 
 export const MIGRATIONS_TABLE = 'pgmigrations';
 
-const MIGRATIONS_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'migrations');
+const MIGRATIONS_DIR = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '..',
+  '..',
+  '..',
+  'migrations',
+);
 
 /** Applies any pending migrations from apps/api/migrations. Safe to run repeatedly and from several processes. */
 export async function migrate(databaseUrl: string) {
@@ -25,8 +31,10 @@ export async function pendingMigrations(pool: Pool): Promise<string[]> {
     .readdirSync(MIGRATIONS_DIR)
     .filter((file) => file.endsWith('.sql'))
     .map((file) => file.replace(/\.sql$/, ''))
-    .sort();
-  const [{ exists }] = (await pool.query(`SELECT to_regclass('public.${MIGRATIONS_TABLE}') IS NOT NULL AS exists`)).rows;
+    .toSorted();
+  const [{ exists }] = (
+    await pool.query(`SELECT to_regclass('public.${MIGRATIONS_TABLE}') IS NOT NULL AS exists`)
+  ).rows;
   if (!exists) return files;
   const { rows } = await pool.query<{ name: string }>(`SELECT name FROM ${MIGRATIONS_TABLE}`);
   const applied = new Set(rows.map((row) => row.name));

@@ -20,7 +20,8 @@ export class AccessRequestsService {
    * Requests from people who already have access, and any beyond the cap, are quietly ignored.
    */
   async request(address: string, displayName: string): Promise<{ received: true }> {
-    const known = (await this.approved.isApproved(address)) || (await this.approved.isRegistered(address));
+    const known =
+      (await this.approved.isApproved(address)) || (await this.approved.isRegistered(address));
     if (!known) {
       await this.db.query(
         `INSERT INTO access_requests (email, name)
@@ -36,7 +37,11 @@ export class AccessRequestsService {
     const rows = await this.db.query<{ email: string; name: string; requested_at: Date }>(
       'SELECT email, name, requested_at FROM access_requests ORDER BY requested_at',
     );
-    return rows.map((row) => ({ email: row.email, name: row.name, requestedAt: row.requested_at.toISOString() }));
+    return rows.map((row) => ({
+      email: row.email,
+      name: row.name,
+      requestedAt: row.requested_at.toISOString(),
+    }));
   }
 
   /** Approving is the same as the Admin approving that email by hand: it gives an invite link. */

@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { findAmbiguousLines, parseChordSheet, renderChordSheet, suggestKey, transposeChordSheet, transposeKey } from '../src';
+import {
+  findAmbiguousLines,
+  parseChordSheet,
+  renderChordSheet,
+  suggestKey,
+  transposeChordSheet,
+  transposeKey,
+} from '../src';
 
 describe('parsing and rendering', () => {
   it('attaches chords above a lyric line to lyric positions', () => {
@@ -31,7 +38,7 @@ describe('parsing and rendering', () => {
   it('keeps a chord positioned past the end of a shorter lyric', () => {
     const text = 'G          D\nOh Lord';
     const [section] = parseChordSheet(text).sections;
-    expect(section!.lines[0]!.chords).toEqual([
+    expect(section.lines[0].chords).toEqual([
       { chord: 'G', at: 0 },
       { chord: 'D', at: 11 },
     ]);
@@ -43,15 +50,15 @@ describe('parsing and rendering', () => {
     (chord) => {
       const text = `${chord}   Am\nSome words here`;
       const [section] = parseChordSheet(text).sections;
-      expect(section!.lines[0]!.chords[0]).toEqual({ chord, at: 0 });
+      expect(section.lines[0].chords[0]).toEqual({ chord, at: 0 });
       expect(renderChordSheet(parseChordSheet(text))).toBe(text);
     },
   );
 
   it('treats a line of ordinary words as lyrics, not chords', () => {
     const [section] = parseChordSheet('A Bad day\nAm').sections;
-    expect(section!.lines[0]).toEqual({ lyric: 'A Bad day', chords: [] });
-    expect(section!.lines[1]).toEqual({ lyric: '', chords: [{ chord: 'Am', at: 0 }] });
+    expect(section.lines[0]).toEqual({ lyric: 'A Bad day', chords: [] });
+    expect(section.lines[1]).toEqual({ lyric: '', chords: [{ chord: 'Am', at: 0 }] });
   });
 
   it('keeps a chord-only line, such as an instrumental, with no lyric', () => {
@@ -61,16 +68,29 @@ describe('parsing and rendering', () => {
 
   it('pushes overlapping chords apart rather than running them together', () => {
     const sheet = {
-      sections: [{ name: '', lines: [{ lyric: 'ab', chords: [{ chord: 'Cmaj7', at: 0 }, { chord: 'G', at: 2 }] }] }],
+      sections: [
+        {
+          name: '',
+          lines: [
+            {
+              lyric: 'ab',
+              chords: [
+                { chord: 'Cmaj7', at: 0 },
+                { chord: 'G', at: 2 },
+              ],
+            },
+          ],
+        },
+      ],
       order: [''],
     };
     expect(renderChordSheet(sheet)).toBe('Cmaj7 G\nab');
   });
 });
 
-describe('section headers', () => {
-  const names = (text: string) => parseChordSheet(text).sections.map((section) => section.name);
+const names = (text: string) => parseChordSheet(text).sections.map((section) => section.name);
 
+describe('section headers', () => {
   it('detects headers such as [Verse 1] and [Chorus]', () => {
     expect(names('[Verse 1]\nHello\n\n[Chorus]\nWorld')).toEqual(['Verse 1', 'Chorus']);
   });
@@ -89,7 +109,7 @@ describe('section headers', () => {
 
   it('shows an edit to a repeated Section everywhere it occurs', () => {
     const sheet = parseChordSheet('[Chorus]\nSing\n\n[Verse]\nHi\n\n[Chorus]\nSing');
-    sheet.sections[0]!.lines[0]!.lyric = 'Shout';
+    sheet.sections[0].lines[0].lyric = 'Shout';
     expect(renderChordSheet(sheet)).toBe('[Chorus]\nShout\n\n[Verse]\nHi\n\n[Chorus]\nShout');
   });
 
@@ -102,7 +122,7 @@ describe('section headers', () => {
   it('does not treat an empty header such as [ ] as a Section', () => {
     const sheet = parseChordSheet('[Verse]\nHello\n[ ]\nWorld');
     expect(sheet.sections.map((s) => s.name)).toEqual(['Verse']);
-    expect(sheet.sections[0]!.lines.map((l) => l.lyric)).toEqual(['Hello', '[ ]', 'World']);
+    expect(sheet.sections[0].lines.map((l) => l.lyric)).toEqual(['Hello', '[ ]', 'World']);
   });
 
   it('puts text before any header into an unnamed Section', () => {
@@ -110,29 +130,37 @@ describe('section headers', () => {
   });
 });
 
-describe('transposing', () => {
-  const sheetOf = (...chords: string[]) => ({
-    sections: [{ name: 'Verse', lines: [{ lyric: 'la', chords: chords.map((chord, i) => ({ chord, at: i * 3 })) }] }],
-    order: ['Verse'],
-  });
-  const chordsIn = (sheet: ReturnType<typeof sheetOf>) => sheet.sections[0]!.lines[0]!.chords.map((c) => c.chord);
+const sheetOf = (...chords: string[]) => ({
+  sections: [
+    {
+      name: 'Verse',
+      lines: [{ lyric: 'la', chords: chords.map((chord, i) => ({ chord, at: i * 3 })) }],
+    },
+  ],
+  order: ['Verse'],
+});
 
+const chordsIn = (sheet: ReturnType<typeof sheetOf>) =>
+  sheet.sections[0].lines[0].chords.map((c) => c.chord);
+
+describe('transposing', () => {
   it('moves chords up and down, keeping positions and lyrics', () => {
     const up = transposeChordSheet(sheetOf('G', 'D', 'Em', 'C'), 2);
     expect(chordsIn(up)).toEqual(['A', 'E', 'F#m', 'D']);
-    expect(up.sections[0]!.lines[0]!.chords.map((c) => c.at)).toEqual([0, 3, 6, 9]);
-    expect(up.sections[0]!.lines[0]!.lyric).toBe('la');
-    expect(chordsIn(transposeChordSheet(sheetOf('G', 'D', 'Em', 'C'), -2))).toEqual(['F', 'C', 'Dm', 'Bb']);
+    expect(up.sections[0].lines[0].chords.map((c) => c.at)).toEqual([0, 3, 6, 9]);
+    expect(up.sections[0].lines[0].lyric).toBe('la');
+    expect(chordsIn(transposeChordSheet(sheetOf('G', 'D', 'Em', 'C'), -2))).toEqual([
+      'F',
+      'C',
+      'Dm',
+      'Bb',
+    ]);
   });
 
   it('transposes slash, extended, sharp and flat chords, including the bass note', () => {
-    expect(chordsIn(transposeChordSheet(sheetOf('C/E', 'Gsus4', 'F#m7', 'Bbmaj7', 'D/F#'), 2))).toEqual([
-      'D/F#',
-      'Asus4',
-      'G#m7',
-      'Cmaj7',
-      'E/G#',
-    ]);
+    expect(
+      chordsIn(transposeChordSheet(sheetOf('C/E', 'Gsus4', 'F#m7', 'Bbmaj7', 'D/F#'), 2)),
+    ).toEqual(['D/F#', 'Asus4', 'G#m7', 'Cmaj7', 'E/G#']);
   });
 
   it('wraps around the octave and handles any amount', () => {
@@ -142,13 +170,29 @@ describe('transposing', () => {
   });
 
   it('spells chords with flats when the target key is a flat key', () => {
-    expect(chordsIn(transposeChordSheet(sheetOf('C', 'Am', 'G7'), 5, { toKey: 'F' }))).toEqual(['F', 'Dm', 'C7']);
-    expect(chordsIn(transposeChordSheet(sheetOf('C', 'F', 'G'), 3, { toKey: 'Eb' }))).toEqual(['Eb', 'Ab', 'Bb']);
+    expect(chordsIn(transposeChordSheet(sheetOf('C', 'Am', 'G7'), 5, { toKey: 'F' }))).toEqual([
+      'F',
+      'Dm',
+      'C7',
+    ]);
+    expect(chordsIn(transposeChordSheet(sheetOf('C', 'F', 'G'), 3, { toKey: 'Eb' }))).toEqual([
+      'Eb',
+      'Ab',
+      'Bb',
+    ]);
   });
 
   it('spells chords with sharps when the target key is a sharp key', () => {
-    expect(chordsIn(transposeChordSheet(sheetOf('C', 'F', 'G'), 2, { toKey: 'D' }))).toEqual(['D', 'G', 'A']);
-    expect(chordsIn(transposeChordSheet(sheetOf('C', 'F', 'G'), 6, { toKey: 'F#' }))).toEqual(['F#', 'B', 'C#']);
+    expect(chordsIn(transposeChordSheet(sheetOf('C', 'F', 'G'), 2, { toKey: 'D' }))).toEqual([
+      'D',
+      'G',
+      'A',
+    ]);
+    expect(chordsIn(transposeChordSheet(sheetOf('C', 'F', 'G'), 6, { toKey: 'F#' }))).toEqual([
+      'F#',
+      'B',
+      'C#',
+    ]);
   });
 
   it('keeps flats for flat chords when no target key is given', () => {
@@ -168,9 +212,9 @@ describe('transposing', () => {
   });
 });
 
-describe('suggesting a Key', () => {
-  const suggest = (text: string) => suggestKey(parseChordSheet(text));
+const suggest = (text: string) => suggestKey(parseChordSheet(text));
 
+describe('suggesting a Key', () => {
   it.each([
     ['G\nAmazing', 'G'],
     ['Am7\nI once was lost', 'Am'],
@@ -184,7 +228,7 @@ describe('suggesting a Key', () => {
     expect(suggest(text)).toBe(key);
   });
 
-  it('uses the first chord in the Song\'s order, not in the order Sections are stored', () => {
+  it("uses the first chord in the Song's order, not in the order Sections are stored", () => {
     const sheet = parseChordSheet('[Chorus]\nD\nHow sweet\n\n[Verse]\nG\nAmazing');
     expect(suggestKey({ ...sheet, order: ['Verse', 'Chorus'] })).toBe('G');
   });
@@ -195,9 +239,9 @@ describe('suggesting a Key', () => {
   });
 });
 
-describe('chord lines that may be words', () => {
-  const ambiguous = (text: string) => findAmbiguousLines(parseChordSheet(text));
+const ambiguous = (text: string) => findAmbiguousLines(parseChordSheet(text));
 
+describe('chord lines that may be words', () => {
   it('flags a line that is only "A" or "Am", since the parser cannot tell a chord from a word', () => {
     expect(ambiguous('[Verse]\nA\nI wandered lonely')).toEqual([{ section: 'Verse', line: 0 }]);
     expect(ambiguous('[Verse]\nG\nHello\nAm')).toEqual([{ section: 'Verse', line: 1 }]);
@@ -214,6 +258,8 @@ describe('chord lines that may be words', () => {
   });
 
   it('reports the line by Section name and position within it', () => {
-    expect(ambiguous('[Verse]\nG\nlyric\n\n[Chorus]\nlyric\nAm\nmore')).toEqual([{ section: 'Chorus', line: 1 }]);
+    expect(ambiguous('[Verse]\nG\nlyric\n\n[Chorus]\nlyric\nAm\nmore')).toEqual([
+      { section: 'Chorus', line: 1 },
+    ]);
   });
 });

@@ -1,13 +1,32 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import { ADMIN, approve, bearer, createApp, emailsTo, joinAs, lastTokenOf, signIn, uniqueEmail } from '../helpers.js';
+import {
+  ADMIN,
+  approve,
+  bearer,
+  createApp,
+  emailsTo,
+  joinAs,
+  lastTokenOf,
+  signIn,
+  uniqueEmail,
+} from '../helpers.js';
 
 describe('passwords', () => {
   let app: INestApplication;
   let admin: string;
   const http = () => request(app.getHttpServer());
-  const trySignIn = (email: string, password: string) => http().post('/api/auth/sign-in/email').send({ email, password });
+  const requestReset = (email: string) =>
+    http().post('/api/auth/request-password-reset').send({ email });
+  const reset = (token: string, newPassword = 'reset to this') =>
+    http().post('/api/auth/reset-password').send({ token, newPassword });
+  const resetLink = (token: string, email: string) =>
+    http()
+      .post(`/admin/approved-emails/${encodeURIComponent(email)}/reset-link`)
+      .set(bearer(token));
+  const trySignIn = (email: string, password: string) =>
+    http().post('/api/auth/sign-in/email').send({ email, password });
 
   beforeAll(async () => {
     app = await createApp();
@@ -23,7 +42,11 @@ describe('passwords', () => {
       await http()
         .post('/api/auth/change-password')
         .set(bearer(member.token))
-        .send({ currentPassword: member.password, newPassword: 'a brand new one', revokeOtherSessions: true })
+        .send({
+          currentPassword: member.password,
+          newPassword: 'a brand new one',
+          revokeOtherSessions: true,
+        })
         .expect(200);
       await trySignIn(member.email, member.password).expect(401);
       await trySignIn(member.email, 'a brand new one').expect(200);
@@ -45,23 +68,23 @@ describe('passwords', () => {
       await http()
         .post('/api/auth/change-password')
         .set(bearer(member.token))
-        .send({ currentPassword: member.password, newPassword: 'a brand new one', revokeOtherSessions: true })
+        .send({
+          currentPassword: member.password,
+          newPassword: 'a brand new one',
+          revokeOtherSessions: true,
+        })
         .expect(200);
       await http().get('/auth/me').set(bearer(other)).expect(401);
     });
   });
 
   describe('resetting a forgotten one by email', () => {
-    const requestReset = (email: string) => http().post('/api/auth/request-password-reset').send({ email });
-    const reset = (token: string, newPassword = 'reset to this') =>
-      http().post('/api/auth/reset-password').send({ token, newPassword });
-
     it('emails a link that sets a new password, once', async () => {
       const member = await joinAs(app, admin);
       await requestReset(member.email).expect(200);
       const [message] = emailsTo(member.email).slice(-1);
-      expect(message!.text).toContain('/reset-password/');
-      const token = lastTokenOf(message!);
+      expect(message.text).toContain('/reset-password/');
+      const token = lastTokenOf(message);
       await reset(token).expect(200);
       await trySignIn(member.email, 'reset to this').expect(200);
       await trySignIn(member.email, member.password).expect(401);
@@ -71,7 +94,7 @@ describe('passwords', () => {
     it('ends the sessions that were open before the reset', async () => {
       const member = await joinAs(app, admin);
       await requestReset(member.email).expect(200);
-      await reset(lastTokenOf(emailsTo(member.email).slice(-1)[0]!)).expect(200);
+      await reset(lastTokenOf(emailsTo(member.email).slice(-1)[0])).expect(200);
       await http().get('/auth/me').set(bearer(member.token)).expect(401);
     });
 
@@ -90,15 +113,15 @@ describe('passwords', () => {
   });
 
   describe('a reset link from an Admin', () => {
-    const resetLink = (token: string, email: string) =>
-      http().post(`/admin/approved-emails/${encodeURIComponent(email)}/reset-link`).set(bearer(token));
-
     it('works like the emailed one, and is shown to the Admin to copy', async () => {
       const member = await joinAs(app, admin);
       const res = await resetLink(admin, member.email).expect(201);
       expect(res.body.resetUrl).toMatch(/^http:\/\/localhost:3000\/reset-password\/[\w-]{10,}$/);
       const token = res.body.resetUrl.split('/').pop();
-      await http().post('/api/auth/reset-password').send({ token, newPassword: 'chosen by admin link' }).expect(200);
+      await http()
+        .post('/api/auth/reset-password')
+        .send({ token, newPassword: 'chosen by admin link' })
+        .expect(200);
       await signIn(app, member.email, 'chosen by admin link');
     });
 
@@ -118,9 +141,13 @@ describe('passwords', () => {
   describe('invite emails', () => {
     it('are sent when an Admin approves an email, with the same link the Admin sees', async () => {
       const email = uniqueEmail();
-      const res = await http().post('/admin/approved-emails').set(bearer(admin)).send({ email }).expect(201);
+      const res = await http()
+        .post('/admin/approved-emails')
+        .set(bearer(admin))
+        .send({ email })
+        .expect(201);
       const [message] = emailsTo(email).slice(-1);
-      expect(message!.text).toContain(res.body.inviteUrl);
+      expect(message.text).toContain(res.body.inviteUrl);
     });
   });
 });

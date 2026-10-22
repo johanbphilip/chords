@@ -14,7 +14,7 @@ export type Word = Piece[];
  * Wrapping is allowed only after a space, never inside a word that has a chord in the middle of it.
  */
 export function layoutLine({ lyric, chords }: SheetLine): Word[] {
-  const sorted = [...chords].sort((a, b) => a.at - b.at);
+  const sorted = [...chords].toSorted((a, b) => a.at - b.at);
   const pieces: Piece[] = [];
   const firstAt = sorted[0]?.at ?? lyric.length;
   if (firstAt > 0) pieces.push({ text: lyric.slice(0, firstAt) });

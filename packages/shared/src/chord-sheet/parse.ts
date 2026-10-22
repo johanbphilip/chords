@@ -20,12 +20,15 @@ export function parseChordSheet(text: string): ChordSheet {
     sections.push(current);
   };
 
-  const rows = text.replace(/\r\n?/g, '\n').split('\n').map((row) => row.trimEnd());
+  const rows = text
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .map((row) => row.trimEnd());
   for (let i = 0; i < rows.length; i++) {
-    const row = rows[i]!;
+    const row = rows[i];
     const header = HEADER.exec(row);
     if (header) {
-      open(header[1]!.trim());
+      open(header[1].trim());
       continue;
     }
     if (!current) {
@@ -48,11 +51,12 @@ export function parseChordSheet(text: string): ChordSheet {
   return resolveRepeatedHeaders(sections.map(trimBlankLines));
 }
 
+const blank = (line: SheetLine) => line.lyric === '' && line.chords.length === 0;
+
 function trimBlankLines(section: SheetSection): SheetSection {
-  const blank = (line: SheetLine) => line.lyric === '' && line.chords.length === 0;
   const lines = [...section.lines];
   while (lines.length > 0 && blank(lines.at(-1)!)) lines.pop();
-  while (lines.length > 0 && blank(lines[0]!)) lines.shift();
+  while (lines.length > 0 && blank(lines[0])) lines.shift();
   return { name: section.name, lines };
 }
 
@@ -76,4 +80,3 @@ function resolveRepeatedHeaders(raw: SheetSection[]): ChordSheet {
   }
   return { sections, order };
 }
-

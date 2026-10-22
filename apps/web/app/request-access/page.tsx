@@ -10,7 +10,10 @@ import { FieldGroup } from '@/components/ui/field';
 import { apiPost } from '@/lib/api';
 
 export default function RequestAccessPage() {
-  const ask = useMutation({ mutationFn: (request: { name: string; email: string }) => apiPost('/auth/request-access', request) });
+  const ask = useMutation({
+    mutationFn: (request: { name: string; email: string }) =>
+      apiPost('/auth/request-access', request),
+  });
 
   const form = useAppForm({
     defaultValues: { name: '', email: '' },
@@ -26,11 +29,16 @@ export default function RequestAccessPage() {
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           {ask.isSuccess ? (
-            <p>Thank you. Your request was received and is waiting for approval. An Admin will send you an invite link.</p>
+            <p>
+              Thank you. Your request was received and is waiting for approval. An Admin will send
+              you an invite link.
+            </p>
           ) : (
             <form {...formProps(form)}>
               <FieldGroup>
-                <form.AppField name="name">{(field) => <field.TextField label="Your name" autoComplete="name" />}</form.AppField>
+                <form.AppField name="name">
+                  {(field) => <field.TextField label="Your name" autoComplete="name" />}
+                </form.AppField>
                 <form.AppField name="email">
                   {(field) => <field.TextField label="Email" type="email" autoComplete="email" />}
                 </form.AppField>

@@ -11,9 +11,13 @@ export class InvitesController {
   constructor(@Inject(InvitesService) private readonly invites: InvitesService) {}
 
   @Public()
-  @Throttle({ default: { limit: () => rateLimits().registerMax, ttl: () => rateLimits().windowMs } })
+  @Throttle({
+    default: { limit: () => rateLimits().registerMax, ttl: () => rateLimits().windowMs },
+  })
   @Post('accept-invite')
-  acceptInvite(@Body(new ZodPipe(acceptInviteSchema)) body: { name: string; password: string; token: string }) {
+  acceptInvite(
+    @Body(new ZodPipe(acceptInviteSchema)) body: { name: string; password: string; token: string },
+  ) {
     return this.invites.accept(body.token, body.name, body.password);
   }
 }

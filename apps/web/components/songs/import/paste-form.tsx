@@ -9,8 +9,16 @@ import { apiPost } from '@/lib/api';
 import type { Parsed } from '@/lib/songs/types';
 
 /** Step one of an import: paste the Song as copied from Tabs. Nothing is saved; the next step is a review. */
-export function PasteForm({ initialText, onParsed }: { initialText: string; onParsed: (text: string, parsed: Parsed) => void }) {
-  const parse = useMutation({ mutationFn: (text: string) => apiPost<Parsed>('/songs/parse', { text }) });
+export function PasteForm({
+  initialText,
+  onParsed,
+}: {
+  initialText: string;
+  onParsed: (text: string, parsed: Parsed) => void;
+}) {
+  const parse = useMutation({
+    mutationFn: (text: string) => apiPost<Parsed>('/songs/parse', { text }),
+  });
 
   const form = useAppForm({
     defaultValues: { text: initialText },

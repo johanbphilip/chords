@@ -8,7 +8,10 @@ import { apiGet } from '@/lib/api';
 import type { SongSummary } from '@/lib/songs/types';
 
 export default function SongsPage() {
-  const { data: songs, error } = useQuery({ queryKey: ['songs'], queryFn: () => apiGet<SongSummary[]>('/songs') });
+  const { data: songs, error } = useQuery({
+    queryKey: ['songs'],
+    queryFn: () => apiGet<SongSummary[]>('/songs'),
+  });
 
   return (
     <div className="flex flex-col gap-4">
@@ -31,7 +34,9 @@ export default function SongsPage() {
             <Link href={`/songs/${song.id}`} className="flex items-baseline gap-2 py-2">
               <span className="font-medium">{song.title}</span>
               {song.artist && <span className="text-sm text-muted-foreground">{song.artist}</span>}
-              {song.key && <span className="ml-auto text-sm text-muted-foreground">{song.key}</span>}
+              {song.key && (
+                <span className="ml-auto text-sm text-muted-foreground">{song.key}</span>
+              )}
             </Link>
           </li>
         ))}

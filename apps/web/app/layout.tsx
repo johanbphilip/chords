@@ -1,14 +1,14 @@
 import type { ReactNode } from 'react';
 import './globals.css';
 import { Providers } from './providers';
-import { GeistSans } from "geist/font/sans";
-import { cn } from "@/lib/utils";
+import { GeistSans } from 'geist/font/sans';
+import { cn } from '@/lib/utils';
 
 export const metadata = { title: 'Chords' };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className={cn("font-sans", GeistSans.variable)}>
+    <html lang="en" className={cn('font-sans', GeistSans.variable)}>
       <body>
         <Providers>{children}</Providers>
       </body>

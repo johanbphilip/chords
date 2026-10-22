@@ -4,26 +4,32 @@ import SignInPage from '@/app/sign-in/page';
 import { router } from '../router';
 import { renderWithQuery } from './render';
 
-const signIn = vi.hoisted(() => vi.fn());
+const signIn = vi.hoisted(() =>
+  vi.fn<(credentials: { email: string; password: string }) => Promise<unknown>>(),
+);
 vi.mock('@/lib/auth-client', () => ({ authClient: { signIn: { email: signIn } } }));
+
+const fill = async (
+  user: ReturnType<typeof renderWithQuery>['user'],
+  email: string,
+  password: string,
+) => {
+  if (email) {
+    await user.click(screen.getByLabelText('Email'));
+    await user.paste(email);
+  }
+  if (password) {
+    await user.click(screen.getByLabelText('Password'));
+    await user.paste(password);
+  }
+  await user.click(screen.getByRole('button', { name: 'Sign in' }));
+};
 
 describe('the sign-in page', () => {
   beforeEach(() => {
     signIn.mockReset();
     router.replace.mockClear();
   });
-
-  const fill = async (user: ReturnType<typeof renderWithQuery>['user'], email: string, password: string) => {
-    if (email) {
-      await user.click(screen.getByLabelText('Email'));
-      await user.paste(email);
-    }
-    if (password) {
-      await user.click(screen.getByLabelText('Password'));
-      await user.paste(password);
-    }
-    await user.click(screen.getByRole('button', { name: 'Sign in' }));
-  };
 
   it('says what is missing and does not try to sign in', async () => {
     const { user } = renderWithQuery(<SignInPage />);

@@ -6,7 +6,8 @@ import { FieldGroup } from '@/components/ui/field';
 import { songFormSchema, type SongBody, type SongFormValues } from '@/lib/songs/form';
 import { SheetPreview } from './sheet-preview';
 
-const PLACEHOLDER = '[Verse 1]\nG       C\nAmazing grace, how sweet\n\n[Chorus]\nD\nHow sweet the sound';
+const PLACEHOLDER =
+  '[Verse 1]\nG       C\nAmazing grace, how sweet\n\n[Chorus]\nD\nHow sweet the sound';
 
 /**
  * A Song's details and its chords-over-lyrics text, with a live preview. Used for a new Song and for editing one.
@@ -34,13 +35,19 @@ export function SongForm({
     <form {...formProps(form)}>
       <FieldGroup>
         <form.AppField name="title">{(field) => <field.TextField label="Title" />}</form.AppField>
-        <form.AppField name="artist">{(field) => <field.TextField label="Artist (optional)" />}</form.AppField>
+        <form.AppField name="artist">
+          {(field) => <field.TextField label="Artist (optional)" />}
+        </form.AppField>
         <div className="grid grid-cols-3 gap-3">
-          <form.AppField name="key">{(field) => <field.TextField label="Key" placeholder="G" />}</form.AppField>
+          <form.AppField name="key">
+            {(field) => <field.TextField label="Key" placeholder="G" />}
+          </form.AppField>
           <form.AppField name="tempo">
             {(field) => <field.TextField label="Tempo" inputMode="numeric" placeholder="72" />}
           </form.AppField>
-          <form.AppField name="timeSignature">{(field) => <field.TextField label="Time" placeholder="4/4" />}</form.AppField>
+          <form.AppField name="timeSignature">
+            {(field) => <field.TextField label="Time" placeholder="4/4" />}
+          </form.AppField>
         </div>
         <form.AppField name="text">
           {(field) => (
@@ -54,7 +61,9 @@ export function SongForm({
             />
           )}
         </form.AppField>
-        <form.Subscribe selector={(state) => state.values.text}>{(text) => <SheetPreview text={text} />}</form.Subscribe>
+        <form.Subscribe selector={(state) => state.values.text}>
+          {(text) => <SheetPreview text={text} />}
+        </form.Subscribe>
         {children}
         <form.AppForm>
           <form.SubmitButton pendingLabel="Saving…">{submitLabel}</form.SubmitButton>

@@ -10,7 +10,7 @@ export class ZodPipe<Schema extends z.ZodType> implements PipeTransform<unknown,
 
   transform(value: unknown): z.output<Schema> {
     const result = this.schema.safeParse(value ?? {});
-    if (!result.success) throw new BadRequestException(result.error.issues[0]!.message);
+    if (!result.success) throw new BadRequestException(result.error.issues[0].message);
     return result.data;
   }
 }

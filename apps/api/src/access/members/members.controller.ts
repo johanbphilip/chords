@@ -23,7 +23,10 @@ export class AdminMembersController {
 
   @Put(':email/role')
   @HttpCode(200)
-  async setRole(@Param('email') email: string, @Body(new ZodPipe(setRoleSchema)) body: { role: Role }) {
+  async setRole(
+    @Param('email') email: string,
+    @Body(new ZodPipe(setRoleSchema)) body: { role: Role },
+  ) {
     await this.members.setRole(email, body.role);
     return {};
   }

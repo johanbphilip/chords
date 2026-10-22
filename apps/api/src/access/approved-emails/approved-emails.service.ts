@@ -17,8 +17,15 @@ export class ApprovedEmailsService {
     return rows.length > 0;
   }
 
-  async list(): Promise<{ email: string; role: Role; name: string | null; status: 'invited' | 'active' | 'revoked' }[]> {
-    const rows = await this.db.query<{ email: string; role: Role | null; name: string | null; banned: boolean | null }>(
+  async list(): Promise<
+    { email: string; role: Role; name: string | null; status: 'invited' | 'active' | 'revoked' }[]
+  > {
+    const rows = await this.db.query<{
+      email: string;
+      role: Role | null;
+      name: string | null;
+      banned: boolean | null;
+    }>(
       `SELECT a.email, u.role, u.name, u.banned FROM approved_emails a LEFT JOIN "user" u ON u.email = a.email ORDER BY a.email`,
     );
     return rows.map((row) => ({
@@ -31,14 +38,18 @@ export class ApprovedEmailsService {
 
   /** Adds an already-normalised address. Approving one that is already approved changes nothing. */
   async add(address: string) {
-    await this.db.query('INSERT INTO approved_emails (email) VALUES ($1) ON CONFLICT DO NOTHING', [address]);
+    await this.db.query('INSERT INTO approved_emails (email) VALUES ($1) ON CONFLICT DO NOTHING', [
+      address,
+    ]);
   }
 
   /** Removes an approved email that never joined. Someone who has joined is revoked instead, to keep their name. */
   async remove(email: string) {
     const address = normaliseEmail(email);
     if (await this.isRegistered(address)) {
-      throw new ConflictException('That person has joined, so revoke their access instead of removing them');
+      throw new ConflictException(
+        'That person has joined, so revoke their access instead of removing them',
+      );
     }
     await this.db.query('DELETE FROM approved_emails WHERE email = $1', [address]);
   }

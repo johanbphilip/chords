@@ -13,7 +13,10 @@ import type { Saved, Song } from '@/lib/songs/types';
 
 export default function EditSongPage() {
   const { id } = useParams<{ id: string }>();
-  const { data: song, error } = useQuery({ queryKey: ['song', id], queryFn: () => apiGet<Song>(`/songs/${id}`) });
+  const { data: song, error } = useQuery({
+    queryKey: ['song', id],
+    queryFn: () => apiGet<Song>(`/songs/${id}`),
+  });
 
   if (error) return <FormError error={error} />;
   if (!song) return null;
@@ -28,7 +31,10 @@ function Editor({ song }: { song: Song }) {
   const save = useMutation({
     mutationFn: (body: SongBody) => apiPut<Saved>(`/songs/${song.id}`, body),
     onSuccess: async (updated) => {
-      await Promise.all([queryClient.invalidateQueries({ queryKey: ['songs'] }), queryClient.invalidateQueries({ queryKey: ['song', song.id] })]);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['songs'] }),
+        queryClient.invalidateQueries({ queryKey: ['song', song.id] }),
+      ]);
       // Changing the title or artist can leave a same-title Song by someone else, so say so before moving on.
       if (updated.similar.length === 0) router.push(`/songs/${song.id}`);
       else setSaved(updated);
@@ -42,8 +48,9 @@ function Editor({ song }: { song: Song }) {
       <h1 className="text-xl font-medium">Edit song</h1>
       <SongForm initial={songToForm(song)} onSave={save.mutateAsync} submitLabel="Save changes">
         <p className="text-xs text-muted-foreground">
-          Add, rename or remove a Section by changing its [header]. A Section sung twice appears twice; if you change only one copy it becomes its own
-          Section (for example "Chorus 2"), so change both.
+          Add, rename or remove a Section by changing its [header]. A Section sung twice appears
+          twice; if you change only one copy it becomes its own Section (for example "Chorus 2"), so
+          change both.
         </p>
         <SongError error={save.error} />
       </SongForm>

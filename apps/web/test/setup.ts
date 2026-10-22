@@ -10,7 +10,7 @@ globalThis.ResizeObserver ??= class {
   unobserve() {}
   disconnect() {}
 };
-Element.prototype.scrollIntoView ??= () => {};
+Element.prototype.scrollIntoView = () => {};
 
 vi.mock('next/navigation', async () => {
   const { router } = await import('./router');

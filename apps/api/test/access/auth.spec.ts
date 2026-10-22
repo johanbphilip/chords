@@ -19,8 +19,12 @@ describe('signing in', () => {
   });
 
   it('refuses a wrong password and an unknown email alike', async () => {
-    const wrong = await request(app.getHttpServer()).post('/api/auth/sign-in/email').send({ email: ADMIN.email, password: 'nope-nope' });
-    const unknown = await request(app.getHttpServer()).post('/api/auth/sign-in/email').send({ email: 'ghost@example.com', password: 'nope-nope' });
+    const wrong = await request(app.getHttpServer())
+      .post('/api/auth/sign-in/email')
+      .send({ email: ADMIN.email, password: 'nope-nope' });
+    const unknown = await request(app.getHttpServer())
+      .post('/api/auth/sign-in/email')
+      .send({ email: 'ghost@example.com', password: 'nope-nope' });
     expect(wrong.status).toBe(401);
     expect(unknown.status).toBe(401);
     expect(unknown.body).toEqual(wrong.body);
@@ -43,7 +47,10 @@ describe('sessions', () => {
     const app = await createApp();
     try {
       const token = await signIn(app, ADMIN.email, ADMIN.password);
-      const res = await request(app.getHttpServer()).get('/api/auth/get-session').set(bearer(token)).expect(200);
+      const res = await request(app.getHttpServer())
+        .get('/api/auth/get-session')
+        .set(bearer(token))
+        .expect(200);
       const days = (new Date(res.body.session.expiresAt).getTime() - Date.now()) / 86_400_000;
       expect(days).toBeGreaterThan(29.5);
       expect(days).toBeLessThanOrEqual(30);
@@ -54,19 +61,21 @@ describe('sessions', () => {
 });
 
 describe('the Admin account', () => {
-  it('cannot be claimed through Better Auth\'s own sign-up route', async () => {
+  it("cannot be claimed through Better Auth's own sign-up route", async () => {
     const app = await createApp();
     try {
       await request(app.getHttpServer())
         .post('/api/auth/sign-up/email')
         .send({ email: 'sneaky@example.com', password: 'a-long-password', name: 'Sneaky' })
         .expect(400);
-      await request(app.getHttpServer()).post('/api/auth/sign-in/email').send({ email: 'sneaky@example.com', password: 'a-long-password' }).expect(401);
+      await request(app.getHttpServer())
+        .post('/api/auth/sign-in/email')
+        .send({ email: 'sneaky@example.com', password: 'a-long-password' })
+        .expect(401);
     } finally {
       await app.close();
     }
   });
-
 });
 
 describe('Better Auth admin routes', () => {
@@ -87,7 +96,13 @@ describe('Better Auth admin routes', () => {
       const res = await request(app.getHttpServer())
         .post(`/api/auth/admin/${route}`)
         .set(bearer(admin))
-        .send({ userId: 'anyone', email: 'unapproved@example.com', password: 'a-long-password', name: 'X', role: 'member' });
+        .send({
+          userId: 'anyone',
+          email: 'unapproved@example.com',
+          password: 'a-long-password',
+          name: 'X',
+          role: 'member',
+        });
       expect(res.status).toBe(404);
     } finally {
       await app.close();
@@ -95,19 +110,19 @@ describe('Better Auth admin routes', () => {
   });
 });
 
+const startAs = async (email: string, password?: string) => {
+  process.env.ADMIN_EMAIL = email;
+  if (password === undefined) delete process.env.ADMIN_PASSWORD;
+  else process.env.ADMIN_PASSWORD = password;
+  return createApp();
+};
+
 describe('the Admin account across restarts', () => {
   const keep = { email: process.env.ADMIN_EMAIL, password: process.env.ADMIN_PASSWORD };
   afterEach(() => {
     process.env.ADMIN_EMAIL = keep.email;
     process.env.ADMIN_PASSWORD = keep.password;
   });
-
-  const startAs = async (email: string, password?: string) => {
-    process.env.ADMIN_EMAIL = email;
-    if (password === undefined) delete process.env.ADMIN_PASSWORD;
-    else process.env.ADMIN_PASSWORD = password;
-    return createApp();
-  };
 
   it('keeps a changed password: ADMIN_PASSWORD only applies when the Admin is first created', async () => {
     const email = `bootstrap-${Date.now()}@example.com`;
@@ -125,7 +140,10 @@ describe('the Admin account across restarts', () => {
     const second = await startAs(email, 'original-password');
     try {
       await signIn(second, email, 'changed-password');
-      await request(second.getHttpServer()).post('/api/auth/sign-in/email').send({ email, password: 'original-password' }).expect(401);
+      await request(second.getHttpServer())
+        .post('/api/auth/sign-in/email')
+        .send({ email, password: 'original-password' })
+        .expect(401);
     } finally {
       await second.close();
     }
@@ -133,10 +151,12 @@ describe('the Admin account across restarts', () => {
 
   it('starts without ADMIN_PASSWORD once the Admin exists', async () => {
     const app = await startAs(ADMIN.email);
-    await app.close();
+    await expect(app.close()).resolves.toBeUndefined();
   });
 
   it('refuses to start without ADMIN_PASSWORD while the Admin does not exist yet', async () => {
-    await expect(startAs(`never-created-${Date.now()}@example.com`)).rejects.toThrow('ADMIN_PASSWORD');
+    await expect(startAs(`never-created-${Date.now()}@example.com`)).rejects.toThrow(
+      'ADMIN_PASSWORD',
+    );
   });
 });

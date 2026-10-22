@@ -1,4 +1,4 @@
-import { normaliseEmail, type Role } from '@chords/shared';
+import { normaliseEmail, roleSchema, type Role } from '@chords/shared';
 import { Inject, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { fromNodeHeaders } from 'better-auth/node';
 import type { IncomingHttpHeaders } from 'node:http';
@@ -6,7 +6,13 @@ import { randomBytes } from 'node:crypto';
 import { Database } from '../../infrastructure/database/database.js';
 import { EmailService } from '../../infrastructure/email/email.service.js';
 import { ApprovedEmailsService } from '../approved-emails/approved-emails.service.js';
-import { createAuth, RESET_TOKEN_SECONDS, webLink, type Auth, type Permission } from './better-auth.js';
+import {
+  createAuth,
+  RESET_TOKEN_SECONDS,
+  webLink,
+  type Auth,
+  type Permission,
+} from './better-auth.js';
 
 export interface Member {
   email: string;
@@ -95,6 +101,8 @@ export class AuthService implements OnModuleInit {
     if (!session || session.user.banned) return undefined;
     // Approval is checked on every request, so taking someone off the list ends their access immediately.
     if (!(await this.approved.isApproved(session.user.email))) return undefined;
-    return { email: session.user.email, role: session.user.role as Role, name: session.user.name };
+    const role = roleSchema.safeParse(session.user.role);
+    if (!role.success) return undefined;
+    return { email: session.user.email, role: role.data, name: session.user.name };
   }
 }

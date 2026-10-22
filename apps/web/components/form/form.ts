@@ -35,13 +35,18 @@ export const formProps = (form: { handleSubmit: () => unknown }) => ({
  * Waits for a mutation without rethrowing its failure. The form stays "submitting" until the request ends, and
  * the mutation keeps the error for `<FormError>` to show.
  */
-export const settled = (request: Promise<unknown>) => request.then(() => undefined, () => undefined);
+export const settled = (request: Promise<unknown>) =>
+  request.then(
+    () => undefined,
+    () => undefined,
+  );
 
 /**
  * `validators` for a schema that accepts loose input (blank, missing or numeric values), which Zod types as
  * `unknown`. TanStack Form wants the form's own value type, so say it here: `zodValidators<MyValues>(schema)`.
  */
 export const zodValidators = <Values>(schema: z.ZodType) => {
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Zod types loose input as unknown; this says the form's own value type
   const validator = schema as unknown as StandardSchemaV1<Values, unknown>;
   return { onChange: validator, onSubmit: validator };
 };

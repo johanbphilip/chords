@@ -6,4 +6,8 @@ if (!url) {
   process.exit(1);
 }
 const applied = await migrate(url);
-console.log(applied.length === 0 ? 'Database is up to date.' : `Applied: ${applied.map((m) => m.name).join(', ')}`);
+console.log(
+  applied.length === 0
+    ? 'Database is up to date.'
+    : `Applied: ${applied.map((m) => m.name).join(', ')}`,
+);

@@ -23,7 +23,8 @@ export default function ResetPasswordPage() {
   const form = useAppForm({
     defaultValues: { newPassword: '' },
     validators: { onChange: resetPasswordSchema, onSubmit: resetPasswordSchema },
-    onSubmit: ({ value }) => settled(reset.mutateAsync(resetPasswordSchema.parse(value).newPassword)),
+    onSubmit: ({ value }) =>
+      settled(reset.mutateAsync(resetPasswordSchema.parse(value).newPassword)),
   });
 
   return (
@@ -35,13 +36,23 @@ export default function ResetPasswordPage() {
         <CardContent>
           {reset.isSuccess ? (
             <p>
-              Your password is changed. <Link href="/sign-in" className="underline">Sign in</Link>
+              Your password is changed.{' '}
+              <Link href="/sign-in" className="underline">
+                Sign in
+              </Link>
             </p>
           ) : (
             <form {...formProps(form)}>
               <FieldGroup>
                 <form.AppField name="newPassword">
-                  {(field) => <field.TextField label="New password" type="password" autoComplete="new-password" description="At least 8 characters." />}
+                  {(field) => (
+                    <field.TextField
+                      label="New password"
+                      type="password"
+                      autoComplete="new-password"
+                      description="At least 8 characters."
+                    />
+                  )}
                 </form.AppField>
                 <FormError error={reset.error} />
                 <form.AppForm>
